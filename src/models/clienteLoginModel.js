@@ -4,7 +4,7 @@ const ClienteLogin = {
   create: (data) => {
     const { email, senha, telefone } = data;
 
-    // Validação de e-mail simples
+    // Validação de e-mail
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       throw new Error("E-mail inválido.");
     }
@@ -16,11 +16,16 @@ const ClienteLogin = {
 
     return new Promise((resolve, reject) => {
       const query = `
-        INSERT INTO usuarios (nome, email, senha, telefone)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO usuarios (email, senha, telefone)
+        VALUES (?, ?, ?)
       `;
-      db.run(query, ["Cliente", email, senha, telefone], function (err) {
-        if (err) return reject(err);
+      db.run(query, [email, senha, telefone], function (err) {
+        if (err) {
+          if (err.message.includes('UNIQUE constraint failed')) {
+            return reject(new Error("E-mail já cadastrado."));
+          }
+          return reject(err);
+        }
         resolve({ id: this.lastID, email, telefone });
       });
     });
