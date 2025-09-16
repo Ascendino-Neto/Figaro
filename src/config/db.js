@@ -5,7 +5,7 @@ const path = require('path');
 const dbPath = path.join(__dirname, '../../figaro.db');
 const db = new sqlite3.Database(dbPath);
 
-// Função para criar tabelas
+// Funï¿½ï¿½o para criar tabelas
 function createTables() {
   db.serialize(() => {
     // Tabela de clientes (US 1) - Dados pessoais
@@ -20,7 +20,7 @@ function createTables() {
       )
     `);
 
-    // Tabela de usuários (US 2) - Dados de login (SEM a coluna 'nome')
+    // Tabela de usuï¿½rios (US 2) - Dados de login (SEM a coluna 'nome')
     db.run(`
       CREATE TABLE IF NOT EXISTS usuarios (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -33,7 +33,7 @@ function createTables() {
       )
     `);
 
-    // Tabela de agendamentos (para futuras implementações)
+    // Tabela de agendamentos (para futuras implementaï¿½ï¿½es)
     db.run(`
       CREATE TABLE IF NOT EXISTS agendamentos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -49,9 +49,23 @@ function createTables() {
 
     console.log('? Tabelas criadas com sucesso!');
   });
+
+    // Tabela de prestadores
+    db.run(`
+      CREATE TABLE IF NOT EXISTS prestadores (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome TEXT NOT NULL,
+        cpf TEXT UNIQUE NOT NULL,
+        endereco TEXT NOT NULL,
+        telefone TEXT NOT NULL,
+        cep TEXT NOT NULL,
+        criado_em DATETIME DEFAULT CURRENT_TIMESTAMP
+     )
+   `);
 }
 
-// Função para verificar e atualizar a estrutura da tabela usuarios
+
+// Funï¿½ï¿½o para verificar e atualizar a estrutura da tabela usuarios
 function updateTableStructure() {
   db.get("PRAGMA table_info(usuarios)", (err, columns) => {
     if (err) {
@@ -66,7 +80,7 @@ function updateTableStructure() {
         console.log('?? Atualizando estrutura da tabela usuarios...');
         
         db.serialize(() => {
-          // 1. Criar tabela temporária sem a coluna 'nome'
+          // 1. Criar tabela temporï¿½ria sem a coluna 'nome'
           db.run(`
             CREATE TABLE usuarios_temp (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -88,7 +102,7 @@ function updateTableStructure() {
           // 3. Remover tabela antiga
           db.run(`DROP TABLE usuarios`);
           
-          // 4. Renomear tabela temporária
+          // 4. Renomear tabela temporï¿½ria
           db.run(`ALTER TABLE usuarios_temp RENAME TO usuarios`);
           
           console.log('? Estrutura da tabela usuarios atualizada!');
@@ -98,7 +112,7 @@ function updateTableStructure() {
   });
 }
 
-// Teste de conexão e criação/atualização de tabelas
+// Teste de conexï¿½o e criaï¿½ï¿½o/atualizaï¿½ï¿½o de tabelas
 db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='usuarios'", (err, row) => {
   if (err) {
     console.error('? Erro ao conectar com SQLite:', err.message);
@@ -106,7 +120,7 @@ db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='usuarios'", 
     console.log('? Conectado ao SQLite com sucesso!');
     
     if (!row) {
-      // Se a tabela usuarios não existe, criar todas as tabelas
+      // Se a tabela usuarios nï¿½o existe, criar todas as tabelas
       createTables();
     } else {
       // Se a tabela existe, verificar se precisa atualizar a estrutura
@@ -115,7 +129,7 @@ db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='usuarios'", 
   }
 });
 
-// Verificar se todas as tabelas necessárias existem
+// Verificar se todas as tabelas necessï¿½rias existem
 db.all("SELECT name FROM sqlite_master WHERE type='table'", (err, tables) => {
   if (err) {
     console.error('? Erro ao verificar tabelas:', err.message);
