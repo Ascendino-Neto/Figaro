@@ -6,9 +6,10 @@ require('dotenv').config();
 const db = require('./config/db');
 
 // Importar TODAS as rotas
-const userRoutes = require('./routes/userRoutes');
 const clienteRoutes = require('./routes/clienteRoutes'); // NOVA rota (US 1)
 const clienteLoginRoutes = require('./routes/clienteLoginRoutes'); // Rota EXISTENTE (US 2)
+const prestadorRoutes = require('./routes/prestadorRoutes');
+const prestadorLoginRoutes = require('./routes/prestadorLoginRoutes'); // Rota EXISTENTE (US 4)
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -18,9 +19,10 @@ app.use(cors());
 app.use(express.json());
 
 // Registrar TODAS as rotas
-app.use('/api', userRoutes);
-app.use('/api', clienteRoutes); // Cadastro de clientes (US 1)
-app.use('/api', clienteLoginRoutes); // Login de clientes (US 2)
+app.use(clienteRoutes); // Cadastro de clientes (US 1)
+app.use(clienteLoginRoutes); // Login de clientes (US 2)
+app.use(prestadorRoutes);
+app.use(prestadorLoginRoutes); // Login do prestador (US 4)
 
 // Rota de teste
 app.get('/', (req, res) => {
@@ -39,7 +41,7 @@ app.get('/', (req, res) => {
   });
 });
 
-// Rota de saúde
+// Rota de saï¿½de
 app.get('/health', (req, res) => {
   db.get("SELECT datetime('now') as time", (err, row) => {
     if (err) {
@@ -59,12 +61,12 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Rota de fallback para endpoints não encontrados (CORRIGIDO)
+// Rota de fallback para endpoints nï¿½o encontrados (CORRIGIDO)
 app.use((req, res) => {
   res.status(404).json({
     success: false,
-    error: 'Endpoint não encontrado',
-    message: `A rota ${req.originalUrl} não existe`,
+    error: 'Endpoint nï¿½o encontrado',
+    message: `A rota ${req.originalUrl} nï¿½o existe`,
     availableEndpoints: {
       clientes: {
         cadastro: 'POST /api/clientes',
@@ -80,7 +82,7 @@ app.use((req, res) => {
 
 // Manipulador de erros global
 app.use((error, req, res, next) => {
-  console.error('Erro não tratado:', error);
+  console.error('Erro nï¿½o tratado:', error);
   res.status(500).json({
     success: false,
     error: 'Erro interno do servidor',
@@ -93,10 +95,10 @@ app.listen(PORT, () => {
   console.log(`?? Servidor rodando na porta ${PORT}`);
   console.log(`?? SQLite conectado: ./figaro.db`);
   console.log(`?? Acesse: http://localhost:${PORT}`);
-  console.log(`?? Endpoints disponíveis:`);
+  console.log(`?? Endpoints disponï¿½veis:`);
   console.log(`   POST /api/clientes          - Cadastrar cliente (US 1)`);
   console.log(`   GET  /api/clientes/:cpf     - Buscar cliente por CPF`);
   console.log(`   POST /api/clientes/login    - Criar login (US 2)`);
   console.log(`   GET  /health               - Status do servidor`);
-  console.log(`   GET  /                     - Informações da API`);
+  console.log(`   GET  /                     - Informaï¿½ï¿½es da API`);
 });
