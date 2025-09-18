@@ -46,7 +46,7 @@ function validarCPF(cpf) {
 const Cliente = {
   // Criar cliente (US 1)
   create: (data) => {
-    const { nome, cpf, telefone, email } = data;
+    const { nome, cpf, telefone, email, senha } = data;
 
     // Validação de CPF
     if (!validarCPF(cpf)) {
@@ -89,6 +89,15 @@ const Cliente = {
       });
     });
   },
+
+  deleteByEmail: (email) => {
+  return new Promise((resolve, reject) => {
+    db.run("DELETE FROM clientes WHERE email = ?", [email], function (err) {
+      if (err) reject(err);
+      else resolve({ deleted: this.changes });
+    });
+  });
+},
   
   // Buscar cliente por email
   findByEmail: (email) => {
@@ -100,5 +109,6 @@ const Cliente = {
     });
   }
 };
+
 
 module.exports = Cliente;

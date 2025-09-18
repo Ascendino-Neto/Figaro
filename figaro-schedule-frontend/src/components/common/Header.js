@@ -1,7 +1,18 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { authService } from '../../services/authService';
 
 const Header = () => {
+  const navigate = useNavigate();
+  const isAuthenticated = authService.isAuthenticated();
+  const user = authService.getCurrentUser();
+
+  const handleLogout = () => {
+    authService.logout();
+    navigate('/');
+    window.location.reload();
+  };
+
   return (
     <header style={{ 
       padding: '20px', 
@@ -20,11 +31,27 @@ const Header = () => {
           <h1>FigaroSchedule</h1>
         </Link>
         
-        <nav>
-          <Link to="/cadastro/cliente" style={navStyle}>Cliente</Link>
-          <Link to="/cadastro/prestador" style={navStyle}>Prestador</Link>
-          <Link to="/login" style={navStyle}>Login</Link>
-          <Link to="/dashboard" style={navStyle}>Dashboard</Link>
+        <nav style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+          {isAuthenticated ? (
+            <>
+              <span style={{ marginRight: '15px' }}>
+                Olá, {user.email}
+              </span>
+              <Link to="/dashboard" style={navStyle}>Dashboard</Link>
+              <button 
+                onClick={handleLogout}
+                style={{ ...navStyle, background: 'none', border: '1px solid #e74c3c', color: '#e74c3c' }}
+              >
+                Sair
+              </button>
+            </>
+          ) : (
+            <>
+              <Link to="/cadastro/cliente" style={navStyle}>Cliente</Link>
+              <Link to="/cadastro/prestador" style={navStyle}>Prestador</Link>
+              <Link to="/login" style={navStyle}>Login</Link>
+            </>
+          )}
         </nav>
       </div>
     </header>
@@ -34,10 +61,11 @@ const Header = () => {
 const navStyle = {
   color: 'white',
   textDecoration: 'none',
-  marginLeft: '20px',
   padding: '8px 15px',
   border: '1px solid white',
-  borderRadius: '5px'
+  borderRadius: '5px',
+  background: 'none',
+  cursor: 'pointer'
 };
 
 export default Header;

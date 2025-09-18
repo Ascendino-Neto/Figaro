@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { clienteService } from '../services/clienteService';
+import { authService } from '../services/authService';
 
 const ClienteCadastro = () => {
   const [formData, setFormData] = useState({
     nome: '',
     cpf: '',
     telefone: '',
-    email: ''
+    email: '',
+    senha: '' // CAMPO NOVO
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -16,9 +18,26 @@ const ClienteCadastro = () => {
     setLoading(true);
     
     try {
+      // 1. Primeiro cadastra o cliente
       const result = await clienteService.createCliente(formData);
       setMessage('? Cliente cadastrado com sucesso!');
-      setFormData({ nome: '', cpf: '', telefone: '', email: '' });
+      
+      // 2. Depois cria o login automaticamente
+      try {
+        const loginData = {
+          email: formData.email,
+          senha: formData.senha,
+          telefone: formData.telefone
+        };
+        await authService.login(loginData);
+        setMessage('? Cliente cadastrado e login realizado com sucesso!');
+      } catch (loginError) {
+        setMessage('? Cliente cadastrado, mas erro no login automático: ' + loginError.message);
+      }
+      
+      // Limpa o formulário
+      setFormData({ nome: '', cpf: '', telefone: '', email: '', senha: '' });
+      
     } catch (error) {
       setMessage('? Erro: ' + error.message);
     } finally {
@@ -87,6 +106,21 @@ const ClienteCadastro = () => {
           />
         </div>
 
+        {/* CAMPO NOVO - SENHA */}
+        <div style={inputGroupStyle}>
+          <label>Senha:</label>
+          <input
+            type="password"
+            name="senha"
+            value={formData.senha}
+            onChange={handleChange}
+            required
+            style={inputStyle}
+            placeholder="Digite uma senha segura"
+            minLength="6"
+          />
+        </div>
+
         <button 
           type="submit" 
           disabled={loading}
@@ -111,6 +145,7 @@ const ClienteCadastro = () => {
   );
 };
 
+// Mantenha os estilos anteriores...
 const formStyle = {
   maxWidth: '500px',
   margin: '0 auto',
