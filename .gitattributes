@@ -1,0 +1,11 @@
+# Padronizar todos os arquivos de texto com LF no repositório
+* text=auto eol=lf
+
+# Garantir que arquivos shell/config fiquem sempre LF
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Scripts do Windows ficam em CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
