@@ -35,7 +35,7 @@ const Header = () => {
           {isAuthenticated ? (
             <>
               <span style={{ marginRight: '15px' }}>
-                Ol·, {user.email}
+                Ol√°, {user.email}
               </span>
               <Link to="/dashboard" style={navStyle}>Dashboard</Link>
               <button 

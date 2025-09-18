@@ -1,7 +1,6 @@
 import api from './api';
 
 export const prestadorService = {
-  // Cadastrar prestador
   async createPrestador(prestadorData) {
     try {
       const response = await api.post('/prestadores', prestadorData);
@@ -11,7 +10,6 @@ export const prestadorService = {
     }
   },
 
-  // Listar todos os prestadores
   async getAllPrestadores() {
     try {
       const response = await api.get('/prestadores');
@@ -21,7 +19,6 @@ export const prestadorService = {
     }
   },
 
-  // Buscar prestador por email
   async getPrestadorByEmail(email) {
     try {
       const response = await api.get(`/prestadores/login/${email}`);

@@ -5,7 +5,7 @@ const path = require('path');
 const dbPath = path.join(__dirname, '../../figaro.db');
 const db = new sqlite3.Database(dbPath);
 
-// Fun��o para criar tabelas
+// Fun  o para criar tabelas
 function createTables() {
   db.serialize(() => {
     // Tabela de clientes (US 1) - Dados pessoais
@@ -20,7 +20,7 @@ function createTables() {
       )
     `);
 
-    // Tabela de usu�rios (US 2) - Dados de login (SEM a coluna 'nome')
+    // Tabela de usu rios (US 2) - Dados de login (SEM a coluna 'nome')
     db.run(`
       CREATE TABLE IF NOT EXISTS usuarios (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,7 +34,7 @@ function createTables() {
       )
     `);
 
-    // Tabela de agendamentos (para futuras implementa��es)
+    // Tabela de agendamentos (para futuras implementa  es)
     db.run(`
       CREATE TABLE IF NOT EXISTS agendamentos (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -66,7 +66,7 @@ function createTables() {
 }
 
 
-// Fun��o para verificar e atualizar a estrutura da tabela usuarios
+// Fun  o para verificar e atualizar a estrutura da tabela usuarios
 function updateTableStructure() {
   db.get("PRAGMA table_info(usuarios)", (err, columns) => {
     if (err) {
@@ -81,7 +81,7 @@ function updateTableStructure() {
         console.log('?? Atualizando estrutura da tabela usuarios...');
         
         db.serialize(() => {
-          // 1. Criar tabela tempor�ria sem a coluna 'nome'
+          // 1. Criar tabela tempor ria sem a coluna 'nome'
           db.run(`
             CREATE TABLE usuarios_temp (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -103,7 +103,7 @@ function updateTableStructure() {
           // 3. Remover tabela antiga
           db.run(`DROP TABLE usuarios`);
           
-          // 4. Renomear tabela tempor�ria
+          // 4. Renomear tabela tempor ria
           db.run(`ALTER TABLE usuarios_temp RENAME TO usuarios`);
           
           console.log('? Estrutura da tabela usuarios atualizada!');
@@ -113,7 +113,7 @@ function updateTableStructure() {
   });
 }
 
-// Teste de conex�o e cria��o/atualiza��o de tabelas
+// Teste de conex o e cria  o/atualiza  o de tabelas
 db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='usuarios'", (err, row) => {
   if (err) {
     console.error('? Erro ao conectar com SQLite:', err.message);
@@ -121,7 +121,7 @@ db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='usuarios'", 
     console.log('? Conectado ao SQLite com sucesso!');
     
     if (!row) {
-      // Se a tabela usuarios n�o existe, criar todas as tabelas
+      // Se a tabela usuarios n o existe, criar todas as tabelas
       createTables();
     } else {
       // Se a tabela existe, verificar se precisa atualizar a estrutura
@@ -130,7 +130,7 @@ db.get("SELECT name FROM sqlite_master WHERE type='table' AND name='usuarios'", 
   }
 });
 
-// Verificar se todas as tabelas necess�rias existem
+// Verificar se todas as tabelas necess rias existem
 db.all("SELECT name FROM sqlite_master WHERE type='table'", (err, tables) => {
   if (err) {
     console.error('? Erro ao verificar tabelas:', err.message);

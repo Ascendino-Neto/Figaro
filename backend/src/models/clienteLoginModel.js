@@ -4,29 +4,45 @@ const ClienteLogin = {
   create: (data) => {
     const { email, senha, telefone } = data;
 
-    // Validação de e-mail
+    // ValidaÃ§Ã£o de e-mail
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      throw new Error("E-mail inválido.");
+      throw new Error("E-mail invÃ¡lido.");
     }
 
-    // Validação de telefone com DDD (mínimo 10 dígitos)
-    if (!/^\d{10,11}$/.test(telefone)) {
-      throw new Error("Telefone inválido. Deve conter DDD + número.");
+    // ValidaÃ§Ã£o de senha (mÃ­nimo 6 caracteres)
+    if (!senha || senha.length < 6) {
+      throw new Error("Senha deve ter pelo menos 6 caracteres.");
+    }
+
+    // âœ… VALIDAÃ‡ÃƒO FLEXÃVEL DE TELEFONE
+    if (telefone) {
+      const telefoneLimpo = telefone.replace(/\D/g, '');
+      if (telefoneLimpo.length < 10 || telefoneLimpo.length > 11) {
+        throw new Error("Telefone invÃ¡lido. Deve conter 10 ou 11 dÃ­gitos com DDD.");
+      }
     }
 
     return new Promise((resolve, reject) => {
       const query = `
-        INSERT INTO usuarios (email, senha, telefone)
-        VALUES (?, ?, ?)
+        INSERT INTO usuarios (email, senha, telefone, tipo)
+        VALUES (?, ?, ?, ?)
       `;
-      db.run(query, [email, senha, telefone], function (err) {
+      
+      // âœ… Formata o telefone para padrÃ£o consistente
+      let telefoneFormatado = telefone;
+      if (telefone) {
+        const telefoneLimpo = telefone.replace(/\D/g, '');
+        telefoneFormatado = telefoneLimpo.replace(/(\d{2})(\d{4,5})(\d{4})/, '($1) $2-$3');
+      }
+      
+      db.run(query, [email, senha, telefoneFormatado, 'cliente'], function (err) {
         if (err) {
           if (err.message.includes('UNIQUE constraint failed')) {
-            return reject(new Error("E-mail já cadastrado."));
+            return reject(new Error("E-mail jÃ¡ cadastrado."));
           }
           return reject(err);
         }
-        resolve({ id: this.lastID, email, telefone });
+        resolve({ id: this.lastID, email, telefone: telefoneFormatado });
       });
     });
   },

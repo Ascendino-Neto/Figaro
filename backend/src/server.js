@@ -50,7 +50,7 @@ app.get('/', (req, res) => {
   });
 });
 
-// Rota de sa�de
+// Rota de saúde
 app.get('/api/health', (req, res) => {
   db.get("SELECT datetime('now') as time", (err, row) => {
     if (err) {
@@ -70,12 +70,12 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Rota de fallback para endpoints não encontrados
+// Rota de fallback para endpoints nÃ£o encontrados
 app.use((req, res) => {
   res.status(404).json({
     success: false,
-    error: 'Endpoint não encontrado',
-    message: `A rota ${req.originalUrl} não existe`,
+    error: 'Endpoint nÃ£o encontrado',
+    message: `A rota ${req.originalUrl} nÃ£o existe`,
     availableEndpoints: {
       clientes: {
         cadastro: 'POST /api/clientes',
@@ -97,7 +97,7 @@ app.use((req, res) => {
 
 // Manipulador de erros global
 app.use((error, req, res, next) => {
-  console.error('Erro não tratado:', error);
+  console.error('Erro nÃ£o tratado:', error);
   res.status(500).json({
     success: false,
     error: 'Erro interno do servidor',
@@ -107,10 +107,10 @@ app.use((error, req, res, next) => {
 
 // Iniciar servidor
 app.listen(PORT, () => {
-  console.log('🚀 Servidor rodando na porta ${PORT}');
-  console.log('📊 SQLite conectado: ./figaro.db');
-  console.log('🌐 Acesse: http://localhost:${PORT}');
-  console.log('📋 Endpoints disponíveis:');
+  console.log('ð Servidor rodando na porta ${PORT}');
+  console.log('ð SQLite conectado: ./figaro.db');
+  console.log('ð Acesse: http://localhost:${PORT}');
+  console.log('ð Endpoints disponÃ­veis:');
   console.log('   POST /api/clientes          - Cadastrar cliente');
   console.log('   GET  /api/clientes/:cpf     - Buscar cliente por CPF');
   console.log('   POST /api/clientes/login    - Criar login cliente');
@@ -118,5 +118,5 @@ app.listen(PORT, () => {
   console.log('   GET  /api/prestadores       - Listar prestadores');
   console.log('   POST /api/prestadores/login - Criar login prestador');
   console.log('   GET  /health               - Status do servidor');
-  console.log('   GET  /                     - Informações da API');
+  console.log('   GET  /                     - InformaÃ§Ãµes da API');
 });

@@ -1,6 +1,6 @@
 const db = require('../config/db');
 
-// Fun��o para validar CPF
+// Função para validar CPF
 function validarCPF(cpf) {
   cpf = cpf.replace(/[^\d]+/g, '');
   
@@ -46,29 +46,41 @@ function validarCPF(cpf) {
 const Cliente = {
   // Criar cliente (US 1)
   create: (data) => {
-    const { nome, cpf, telefone, email, senha } = data;
+  const { nome, cpf, telefone, email } = data;
 
-    // Valida��o de CPF
-    if (!validarCPF(cpf)) {
-      throw new Error("CPF inv�lido.");
-    }
+  // ✅ VALIDAÇÃO FLEXÍVEL DE CPF
+  const cpfLimpo = cpf.replace(/\D/g, '');
+  if (cpfLimpo.length !== 11) {
+    throw new Error("CPF inválido. Deve conter 11 dígitos");
+  }
 
-    return new Promise((resolve, reject) => {
-      const query = `
-        INSERT INTO clientes (nome, cpf, telefone, email)
-        VALUES (?, ?, ?, ?)
-      `;
-      db.run(query, [nome, cpf, telefone, email], function (err) {
-        if (err) {
-          if (err.message.includes('UNIQUE constraint failed')) {
-            return reject(new Error("CPF ou e-mail j� cadastrado."));
-          }
-          return reject(err);
+  // ✅ VALIDAÇÃO FLEXÍVEL DE TELEFONE
+  const telefoneLimpo = telefone.replace(/\D/g, '');
+  if (telefoneLimpo.length < 10 || telefoneLimpo.length > 11) {
+    throw new Error("Telefone inválido. Deve conter 10 ou 11 dígitos (com DDD)");
+  }
+
+  return new Promise((resolve, reject) => {
+    // Formata para o padrão do banco
+    const cpfFormatado = cpfLimpo.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+    const telefoneFormatado = telefoneLimpo.replace(/(\d{2})(\d{4,5})(\d{4})/, '($1) $2-$3');
+
+    const query = `
+      INSERT INTO clientes (nome, cpf, telefone, email)
+      VALUES (?, ?, ?, ?)
+    `;
+    
+    db.run(query, [nome, cpfFormatado, telefoneFormatado, email], function (err) {
+      if (err) {
+        if (err.message.includes('UNIQUE constraint failed')) {
+          return reject(new Error("CPF ou e-mail já cadastrado."));
         }
-        resolve({ id: this.lastID, nome, cpf, telefone, email });
-      });
+        return reject(new Error("Erro ao salvar no banco de dados"));
+      }
+      resolve({ id: this.lastID, nome, cpf: cpfFormatado, telefone: telefoneFormatado, email });
     });
-  },
+  });
+},
 
   // Buscar cliente por CPF
   findByCpf: (cpf) => {
