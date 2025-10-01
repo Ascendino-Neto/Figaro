@@ -6,6 +6,9 @@ import Login from './pages/Login';
 import ClienteCadastro from './pages/ClienteCadastro';
 import PrestadorCadastro from './pages/PrestadorCadastro';
 import Dashboard from './pages/Dashboard';
+import PrestadorDashboard from './pages/PrestadorDashboard';
+import Servicos from './pages/Servicos';
+import ProtectedRoute from './components/common/ProtectedRoute';
 import { ApiTest } from './services/api-test';
 import './App.css';
 
@@ -20,7 +23,34 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/cadastro/cliente" element={<ClienteCadastro />} />
             <Route path="/cadastro/prestador" element={<PrestadorCadastro />} />
-            <Route path="/dashboard" element={<Dashboard />} />
+            
+            {/* Rotas Protegidas */}
+            <Route 
+              path="/dashboard" 
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } 
+            />
+            
+            <Route 
+              path="/servicos" 
+              element={
+                <ProtectedRoute requiredType="prestador">
+                  <Servicos />
+                </ProtectedRoute>
+              } 
+            />
+            
+            <Route 
+              path="/prestador/dashboard" 
+              element={
+                <ProtectedRoute requiredType="prestador">
+                  <PrestadorDashboard />
+                </ProtectedRoute>
+              } 
+            />
           </Routes>
           <ApiTest />
         </main>

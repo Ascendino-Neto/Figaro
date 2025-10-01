@@ -6,44 +6,48 @@ const Login = () => {
   const [formData, setFormData] = useState({
     email: '',
     senha: ''
-    // Removido: telefone
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  setLoading(true);
-  setMessage('');
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
 
-  // Validação básica no frontend
-  if (!formData.email || !formData.senha) {
-    setMessage('? Por favor, preencha todos os campos');
-    setLoading(false);
-    return;
-  }
-
-  try {
-    const result = await authService.login(formData);
-    
-    if (result.success) {
-      setMessage('? Login realizado com sucesso!');
-      
-      // Redireciona após 1 segundo
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 1000);
-    } else {
-      setMessage('? ' + result.error);
+    // Validação básica no frontend
+    if (!formData.email || !formData.senha) {
+      setMessage('? Por favor, preencha todos os campos');
+      setLoading(false);
+      return;
     }
-    
-  } catch (error) {
-    setMessage('? ' + error.message);
-  } finally {
-    setLoading(false);
-  }
-};
+
+    try {
+      const result = await authService.login(formData);
+      
+      if (result.success) {
+        setMessage('? Login realizado com sucesso!');
+        
+        // Redireciona baseado no tipo de usuário
+        setTimeout(() => {
+          if (result.user.tipo === 'prestador') {
+            navigate('/prestador/dashboard');
+          } else {
+            navigate('/dashboard');
+          }
+        }, 1000);
+      } else {
+        setMessage('? ' + result.error);
+      }
+      
+    } catch (error) {
+      setMessage('? ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -106,14 +110,19 @@ const Login = () => {
         </form>
 
         <div style={footerStyle}>
-          <p>Não tem uma conta? <a href="/cadastro/cliente" style={linkStyle}>Cadastre-se como cliente</a></p>
+          <p>Não tem uma conta? </p>
+          <div style={registerLinksStyle}>
+            <a href="/cadastro/cliente" style={linkStyle}>Cadastre-se como cliente</a>
+            <span style={{ margin: '0 10px' }}>|</span>
+            <a href="/cadastro/prestador" style={linkStyle}>Cadastre-se como prestador</a>
+          </div>
         </div>
       </div>
     </div>
   );
 };
 
-// Mantenha os estilos (já removi as referências ao telefone)
+// Estilos
 const containerStyle = {
   display: 'flex',
   justifyContent: 'center',
@@ -179,9 +188,18 @@ const footerStyle = {
   borderTop: '1px solid #ecf0f1'
 };
 
+const registerLinksStyle = {
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+  marginTop: '10px',
+  flexWrap: 'wrap'
+};
+
 const linkStyle = {
   color: '#3498db',
-  textDecoration: 'none'
+  textDecoration: 'none',
+  fontWeight: '600'
 };
 
 export default Login;

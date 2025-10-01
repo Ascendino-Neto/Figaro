@@ -4,7 +4,7 @@ const PrestadorLogin = require('../models/prestadorLoginModel');
 const prestadorController = {
   async create(req, res) {
     try {
-      console.log('📝 Cadastrando prestador:', req.body);
+      console.log('?? Cadastrando prestador:', req.body);
       
       const { nome, cpf, endereco, telefone, cep, email, senha } = req.body;
 
@@ -12,14 +12,20 @@ const prestadorController = {
       const prestadorData = { nome, cpf, endereco, telefone, cep, email };
       const prestador = await Prestador.create(prestadorData);
       
-      console.log('✅ Prestador salvo:', prestador);
+      console.log('? Prestador salvo:', prestador);
 
-      // 2. Cadastra o login
+      // 2. Cadastra o login COMO PRESTADOR
       try {
-        const loginData = { email, senha, telefone };
+        const loginData = { 
+          email, 
+          senha, 
+          telefone,
+          prestador_id: prestador.id // ? ADICIONE O prestador_id
+        };
+        
         const login = await PrestadorLogin.create(loginData);
         
-        console.log('✅ Login do prestador salvo:', login);
+        console.log('? Login do prestador salvo:', login);
 
         res.status(201).json({ 
           success: true,
@@ -29,14 +35,14 @@ const prestadorController = {
         });
 
       } catch (loginError) {
-        console.error('❌ Erro ao criar login:', loginError);
+        console.error('? Erro ao criar login:', loginError);
         
-        // Compensação
+        // Compensa��o
         try {
           await Prestador.deleteByEmail(email);
-          console.log('🗑️ Prestador removido devido a erro no login');
+          console.log('??? Prestador removido devido a erro no login');
         } catch (deleteError) {
-          console.error('❌ Erro ao remover prestador:', deleteError);
+          console.error('? Erro ao remover prestador:', deleteError);
         }
 
         res.status(400).json({ 
@@ -46,7 +52,7 @@ const prestadorController = {
       }
       
     } catch (error) {
-      console.error('❌ Erro no cadastro do prestador:', error);
+      console.error('? Erro no cadastro do prestador:', error);
       res.status(400).json({ 
         success: false,
         error: error.message 
@@ -70,5 +76,4 @@ const prestadorController = {
   }
 };
 
-// ✅ CORRETO: Exporta o objeto completo
 module.exports = prestadorController;

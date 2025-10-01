@@ -11,6 +11,7 @@ const clienteLoginRoutes = require('./routes/clienteLoginRoutes');
 const prestadorRoutes = require('./routes/prestadorRoutes');
 const prestadorLoginRoutes = require('./routes/prestadorLoginRoutes');
 const authRoutes = require('./routes/authRoutes');
+const servicoRoutes = require('./routes/servicoRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -25,6 +26,7 @@ app.use('/api', clienteLoginRoutes);
 app.use('/api', prestadorRoutes);
 app.use('/api', prestadorLoginRoutes);
 app.use('/api', authRoutes);
+app.use('/api', servicoRoutes); 
 
 // Rota de teste
 app.get('/', (req, res) => {

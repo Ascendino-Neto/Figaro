@@ -1,6 +1,5 @@
-// clienteController.js - CORRIGIDO
 const Cliente = require('../models/clienteModel');
-const ClienteLogin = require('../models/clienteLoginModel'); // ? IMPORTE O LOGIN
+const ClienteLogin = require('../models/clienteLoginModel');
 
 const clienteController = {
   async create(req, res) {
@@ -9,15 +8,20 @@ const clienteController = {
       
       const { nome, cpf, telefone, email, senha } = req.body;
 
-      // ? 1. Primeiro cadastra o CLIENTE
+      // 1. Primeiro cadastra o CLIENTE
       const clienteData = { nome, cpf, telefone, email };
       const cliente = await Cliente.create(clienteData);
       
       console.log('? Cliente salvo:', cliente);
 
-      // ? 2. Depois cadastra o LOGIN
+      // 2. Depois cadastra o LOGIN COMO CLIENTE
       try {
-        const loginData = { email, senha, telefone };
+        const loginData = { 
+          email, 
+          senha, 
+          telefone,
+          cliente_id: cliente.id // ? ADICIONE O cliente_id
+        };
         const login = await ClienteLogin.create(loginData);
         
         console.log('? Login salvo:', login);
@@ -52,7 +56,6 @@ const clienteController = {
     }
   },
 
-  // Buscar cliente por CPF
   async findByCpf(req, res) {
     try {
       const cliente = await Cliente.findByCpf(req.params.cpf);
@@ -75,4 +78,4 @@ const clienteController = {
   }
 };
 
-module.exports = clienteController; 
+module.exports = clienteController;

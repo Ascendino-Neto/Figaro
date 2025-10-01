@@ -1,16 +1,32 @@
-import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../../services/authService';
 
 const Header = () => {
   const navigate = useNavigate();
-  const isAuthenticated = authService.isAuthenticated();
-  const user = authService.getCurrentUser();
+  const location = useLocation();
+  const [isAuthenticated, setIsAuthenticated] = useState(authService.isAuthenticated());
+  const [user, setUser] = useState(authService.getCurrentUser());
+
+  // Atualiza estado quando a rota muda
+  useEffect(() => {
+    setIsAuthenticated(authService.isAuthenticated());
+    setUser(authService.getCurrentUser());
+  }, [location]);
 
   const handleLogout = () => {
     authService.logout();
+    setIsAuthenticated(false);
+    setUser(null);
     navigate('/');
-    window.location.reload();
+  };
+
+  // ? CORREÇÃO: Função para determinar o link do dashboard
+  const getDashboardLink = () => {
+    if (user?.type === 'prestador') {
+      return '/prestador/dashboard';
+    }
+    return '/dashboard';
   };
 
   return (
@@ -35,9 +51,18 @@ const Header = () => {
           {isAuthenticated ? (
             <>
               <span style={{ marginRight: '15px' }}>
-                OlÃ¡, {user.email}
+                Olá, {user?.email}
               </span>
-              <Link to="/dashboard" style={navStyle}>Dashboard</Link>
+              
+              {/* ? CORREÇÃO: Link dinâmico para dashboard */}
+              <Link to={getDashboardLink()} style={navStyle}>
+                Dashboard
+              </Link>
+              
+              {user?.type === 'prestador' && (
+                <Link to="/servicos" style={navStyle}>Meus Serviços</Link>
+              )}
+              
               <button 
                 onClick={handleLogout}
                 style={{ ...navStyle, background: 'none', border: '1px solid #e74c3c', color: '#e74c3c' }}
