@@ -59,22 +59,67 @@ const Header = () => {
                 Dashboard
               </Link>
               
+              {/* ? NOVO: Link para Serviços Disponíveis (apenas clientes) */}
+              {user?.type === 'cliente' && (
+                <Link to="/servicos-cliente" style={navStyle}>
+                  Serviços Disponíveis
+                </Link>
+              )}
+              
+              {/* ? Link para Meus Serviços (apenas prestadores) */}
               {user?.type === 'prestador' && (
-                <Link to="/servicos" style={navStyle}>Meus Serviços</Link>
+                <Link to="/servicos" style={navStyle}>
+                  Meus Serviços
+                </Link>
               )}
               
               <button 
                 onClick={handleLogout}
-                style={{ ...navStyle, background: 'none', border: '1px solid #e74c3c', color: '#e74c3c' }}
+                style={{ 
+                  ...navStyle, 
+                  background: 'none', 
+                  border: '1px solid #e74c3c', 
+                  color: '#e74c3c',
+                  transition: 'all 0.3s'
+                }}
+                onMouseOver={(e) => {
+                  e.target.style.background = '#e74c3c';
+                  e.target.style.color = 'white';
+                }}
+                onMouseOut={(e) => {
+                  e.target.style.background = 'none';
+                  e.target.style.color = '#e74c3c';
+                }}
               >
                 Sair
               </button>
             </>
           ) : (
             <>
-              <Link to="/cadastro/cliente" style={navStyle}>Cliente</Link>
-              <Link to="/cadastro/prestador" style={navStyle}>Prestador</Link>
-              <Link to="/login" style={navStyle}>Login</Link>
+              <Link 
+                to="/cadastro/cliente" 
+                style={navStyle}
+                onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                onMouseOut={(e) => e.target.style.background = 'none'}
+              >
+                Cliente
+              </Link>
+              <Link 
+                to="/cadastro/prestador" 
+                style={navStyle}
+                onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                onMouseOut={(e) => e.target.style.background = 'none'}
+              >
+                Prestador
+              </Link>
+              <Link 
+                to="/login" 
+                style={navStyle}
+                onMouseOver={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                onMouseOut={(e) => e.target.style.background = 'none'}
+              >
+                Login
+              </Link>
             </>
           )}
         </nav>
@@ -90,7 +135,10 @@ const navStyle = {
   border: '1px solid white',
   borderRadius: '5px',
   background: 'none',
-  cursor: 'pointer'
+  cursor: 'pointer',
+  transition: 'all 0.3s ease',
+  fontSize: '14px',
+  fontWeight: '500'
 };
 
 export default Header;
