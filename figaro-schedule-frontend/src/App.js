@@ -13,6 +13,7 @@ import AgendamentoConfirmacao from './pages/AgendamentoConfirmacao'; // ✅ NOVA
 import ProtectedRoute from './components/common/ProtectedRoute';
 import { ApiTest } from './services/api-test';
 import './App.css';
+import SelecaoHorario from './pages/SelecaoHorario';
 
 function App() {
   return (
@@ -61,6 +62,15 @@ function App() {
               element={
                 <ProtectedRoute requiredType="prestador">
                   <PrestadorDashboard />
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/agendamento/horario" 
+              element={
+                <ProtectedRoute requiredType="cliente">
+                  <SelecaoHorario />
                 </ProtectedRoute>
               } 
             />

@@ -7,6 +7,11 @@ const agendamentoController = require('../controllers/agendamentoController');
 // @access  Private (Clientes)
 router.post('/agendamentos', agendamentoController.create);
 
+// @route   GET /api/agendamentos/horarios-disponiveis
+// @desc    Buscar horários disponíveis para agendamento
+// @access  Private
+router.get('/agendamentos/horarios-disponiveis', agendamentoController.getHorariosDisponiveis);
+
 // @route   GET /api/agendamentos
 // @desc    Listar todos os agendamentos (Admin)
 // @access  Private (Admin)
@@ -55,6 +60,7 @@ router.get('/agendamentos-health', (req, res) => {
     timestamp: new Date().toISOString(),
     endpoints: {
       create: 'POST /api/agendamentos',
+      horariosDisponiveis: 'GET /api/agendamentos/horarios-disponiveis',
       listAll: 'GET /api/agendamentos',
       findById: 'GET /api/agendamentos/:id',
       findByCliente: 'GET /api/agendamentos/cliente/:cliente_id',

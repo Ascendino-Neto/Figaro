@@ -38,6 +38,10 @@ export const agendamentoService = {
           throw new Error('Não é possível agendar para datas passadas');
         }
         
+        if (errorMessage.includes('horário indisponível') || errorMessage.includes('indisponível')) {
+          throw new Error('Este horário não está mais disponível. Por favor, selecione outro horário.');
+        }
+        
         throw new Error(errorMessage);
       }
       
@@ -46,6 +50,35 @@ export const agendamentoService = {
       }
       
       throw new Error('Erro ao processar agendamento. Tente novamente.');
+    }
+  },
+
+  // Buscar horários disponíveis para um prestador
+  async getHorariosDisponiveis(prestador_id, servico_id, dias = 7) {
+    try {
+      const response = await api.get(`/agendamentos/horarios-disponiveis`, {
+        params: { prestador_id, servico_id, dias }
+      });
+      
+      if (response.data.success) {
+        return response.data;
+      } else {
+        throw new Error(response.data.error);
+      }
+      
+    } catch (error) {
+      console.error('❌ Erro ao buscar horários disponíveis:', error.message);
+      
+      // Mensagens de erro mais amigáveis
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      }
+      
+      if (error.message.includes('Network Error')) {
+        throw new Error('Erro de conexão. Verifique sua internet e tente novamente.');
+      }
+      
+      throw new Error('Erro ao buscar horários disponíveis. Tente novamente.');
     }
   },
 
@@ -188,12 +221,12 @@ export const agendamentoService = {
   },
 
   // Método auxiliar para formatar dados do agendamento
-  formatarDadosAgendamento(servicoSelecionado, user) {
+  formatarDadosAgendamento(servicoSelecionado, user, horarioSelecionado) {
     return {
       servico_id: servicoSelecionado.id,
       prestador_id: servicoSelecionado.prestador_id,
       cliente_id: user.id,
-      data_agendamento: new Date().toISOString(), // Data atual como placeholder
+      data_agendamento: horarioSelecionado, // Agora usa o horário selecionado
       valor_servico: servicoSelecionado.valor,
       observacoes: `Agendamento realizado via sistema - ${new Date().toLocaleString('pt-BR')}`
     };
@@ -217,6 +250,14 @@ export const agendamentoService = {
     
     if (!agendamentoData.data_agendamento) {
       errors.push('Data do agendamento é obrigatória');
+    }
+    
+    // Valida se a data não é no passado
+    if (agendamentoData.data_agendamento) {
+      const dataAgendamento = new Date(agendamentoData.data_agendamento);
+      if (dataAgendamento < new Date()) {
+        errors.push('Não é possível agendar para datas/horários passados');
+      }
     }
     
     if (errors.length > 0) {

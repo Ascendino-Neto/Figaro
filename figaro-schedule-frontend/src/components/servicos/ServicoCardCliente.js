@@ -21,8 +21,8 @@ const ServicoCardCliente = ({ servico }) => {
     // Salva o serviço selecionado no sessionStorage para a próxima página
     sessionStorage.setItem('servicoSelecionado', JSON.stringify(servico));
     
-    // Navega para a página de confirmação
-    navigate('/agendamento/confirmacao');
+    // ✅ MODIFICADO: Navega para a página de SELEÇÃO DE HORÁRIO (nova página)
+    navigate('/agendamento/horario');
   };
 
   const formatarValor = (valor) => {
@@ -99,7 +99,7 @@ const ServicoCardCliente = ({ servico }) => {
   );
 };
 
-// Estilos
+// Estilos (mantidos iguais)
 const cardStyle = {
   background: 'white',
   borderRadius: '12px',
@@ -109,11 +109,7 @@ const cardStyle = {
   transition: 'transform 0.2s, box-shadow 0.2s',
   display: 'flex',
   flexDirection: 'column',
-  height: '100%',
-  ':hover': {
-    transform: 'translateY(-2px)',
-    boxShadow: '0 6px 20px rgba(0, 0, 0, 0.15)'
-  }
+  height: '100%'
 };
 
 const headerStyle = {
@@ -189,10 +185,7 @@ const buttonStyle = {
   fontSize: '16px',
   fontWeight: '600',
   cursor: 'pointer',
-  transition: 'background 0.3s',
-  ':hover': {
-    background: 'linear-gradient(135deg, #2980b9, #3498db)'
-  }
+  transition: 'background 0.3s'
 };
 
 const dateStyle = {
@@ -201,7 +194,7 @@ const dateStyle = {
   textAlign: 'center'
 };
 
-// Adiciona hover effect via JavaScript
+// Adiciona hover effect
 const cardWithHover = {
   ...cardStyle,
   ':hover': {

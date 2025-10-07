@@ -1,4 +1,5 @@
 const Agendamento = require('../models/agendamentoModel');
+const db = require('../config/db');
 
 const agendamentoController = {
   // Criar novo agendamento
@@ -71,6 +72,13 @@ const agendamentoController = {
         });
       }
 
+      if (error.message.includes('Horário indisponível')) {
+        return res.status(409).json({
+          success: false,
+          error: error.message
+        });
+      }
+
       if (error.message.includes('FOREIGN KEY constraint failed')) {
         return res.status(400).json({
           success: false,
@@ -81,6 +89,68 @@ const agendamentoController = {
       res.status(500).json({
         success: false,
         error: 'Erro interno ao criar agendamento: ' + error.message
+      });
+    }
+  },
+
+  // ✅ NOVO: Buscar horários disponíveis para agendamento
+  async getHorariosDisponiveis(req, res) {
+    try {
+      const { prestador_id, servico_id, dias = 7 } = req.query;
+
+      console.log('🕐 Buscando horários disponíveis:', { prestador_id, servico_id, dias });
+
+      // Validações
+      if (!prestador_id || !servico_id) {
+        return res.status(400).json({
+          success: false,
+          error: 'prestador_id e servico_id são obrigatórios'
+        });
+      }
+
+      // Validar se o prestador existe
+      const prestadorExiste = await new Promise((resolve, reject) => {
+        db.get("SELECT id FROM prestadores WHERE id = ?", [prestador_id], (err, row) => {
+          if (err) reject(err);
+          else resolve(!!row);
+        });
+      });
+
+      if (!prestadorExiste) {
+        return res.status(404).json({
+          success: false,
+          error: 'Prestador não encontrado'
+        });
+      }
+
+      // Buscar horários disponíveis
+      const horariosDisponiveis = await Agendamento.getHorariosDisponiveis(
+        prestador_id, 
+        servico_id, 
+        parseInt(dias)
+      );
+
+      res.json({
+        success: true,
+        horarios: horariosDisponiveis.horarios,
+        total: horariosDisponiveis.total,
+        duracao_servico: horariosDisponiveis.duracao_servico,
+        message: `${horariosDisponiveis.total} horários disponíveis encontrados`
+      });
+
+    } catch (error) {
+      console.error('❌ Erro ao buscar horários disponíveis:', error.message);
+      
+      if (error.message.includes('Serviço não encontrado')) {
+        return res.status(404).json({
+          success: false,
+          error: error.message
+        });
+      }
+
+      res.status(500).json({
+        success: false,
+        error: 'Erro interno ao buscar horários disponíveis: ' + error.message
       });
     }
   },

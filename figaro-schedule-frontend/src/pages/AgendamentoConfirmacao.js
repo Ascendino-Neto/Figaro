@@ -6,17 +6,18 @@ import { authService } from '../services/authService';
 const AgendamentoConfirmacao = () => {
   const navigate = useNavigate();
   const [servico, setServico] = useState(null);
+  const [horarioSelecionado, setHorarioSelecionado] = useState(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [agendamentoConfirmado, setAgendamentoConfirmado] = useState(false);
   const user = authService.getCurrentUser();
 
   useEffect(() => {
-    // Recupera o serviço selecionado da sessionStorage
-    const servicoSelecionado = sessionStorage.getItem('servicoSelecionado');
+    // ✅ MODIFICADO: Recupera o agendamento completo (serviço + horário)
+    const agendamentoCompleto = sessionStorage.getItem('agendamentoCompleto');
     
-    if (!servicoSelecionado) {
-      setMessage('❌ Nenhum serviço selecionado. Por favor, selecione um serviço primeiro.');
+    if (!agendamentoCompleto) {
+      setMessage('❌ Nenhum agendamento encontrado. Por favor, selecione um serviço e horário primeiro.');
       return;
     }
 
@@ -26,26 +27,33 @@ const AgendamentoConfirmacao = () => {
     }
 
     try {
-      setServico(JSON.parse(servicoSelecionado));
+      const agendamentoData = JSON.parse(agendamentoCompleto);
+      setServico(agendamentoData);
+      setHorarioSelecionado(agendamentoData.horarioSelecionado);
     } catch (error) {
-      setMessage('❌ Erro ao carregar informações do serviço.');
+      setMessage('❌ Erro ao carregar informações do agendamento.');
     }
   }, [user]);
 
   const handleConfirmarAgendamento = async () => {
-    if (!servico || !user) return;
+    if (!servico || !user || !horarioSelecionado) return;
 
     setLoading(true);
     setMessage('');
 
     try {
+      // ✅ MODIFICADO: Usa o horário selecionado
       const agendamentoData = {
         servico_id: servico.id,
         prestador_id: servico.prestador_id,
         cliente_id: user.id,
-        data_agendamento: new Date().toISOString(), // Data atual como placeholder
-        valor_servico: servico.valor
+        data_agendamento: horarioSelecionado,
+        valor_servico: servico.valor,
+        observacoes: `Agendamento realizado via sistema - ${new Date().toLocaleString('pt-BR')}`
       };
+
+      // Valida dados antes do envio
+      agendamentoService.validarDadosAgendamento(agendamentoData);
 
       const result = await agendamentoService.createAgendamento(agendamentoData);
       
@@ -53,7 +61,8 @@ const AgendamentoConfirmacao = () => {
         setAgendamentoConfirmado(true);
         setMessage('✅ Agendamento confirmado com sucesso!');
         
-        // Limpa o serviço selecionado da sessionStorage
+        // ✅ MODIFICADO: Limpa os dados do agendamento completo
+        sessionStorage.removeItem('agendamentoCompleto');
         sessionStorage.removeItem('servicoSelecionado');
         
         // Redireciona após 3 segundos
@@ -65,12 +74,24 @@ const AgendamentoConfirmacao = () => {
       }
     } catch (error) {
       setMessage('❌ Erro ao confirmar agendamento: ' + error.message);
+      
+      // Se o erro for de horário indisponível, oferece voltar para seleção
+      if (error.message.includes('não está mais disponível') || error.message.includes('indisponível')) {
+        setTimeout(() => {
+          navigate('/agendamento/horario');
+        }, 2000);
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  const handleVoltarParaHorarios = () => {
+    navigate('/agendamento/horario');
+  };
+
   const handleCancelar = () => {
+    sessionStorage.removeItem('agendamentoCompleto');
     sessionStorage.removeItem('servicoSelecionado');
     navigate('/servicos-cliente');
   };
@@ -81,6 +102,18 @@ const AgendamentoConfirmacao = () => {
       style: 'currency',
       currency: 'BRL'
     }).format(valor);
+  };
+
+  const formatarHorario = (horario) => {
+    if (!horario) return 'Não selecionado';
+    return new Date(horario).toLocaleString('pt-BR', {
+      weekday: 'long',
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   if (message && !servico) {
@@ -124,14 +157,14 @@ const AgendamentoConfirmacao = () => {
           <p>
             {agendamentoConfirmado 
               ? 'Seu agendamento foi realizado com sucesso!'
-              : 'Revise os detalhes do serviço antes de confirmar'
+              : 'Revise os detalhes antes de confirmar'
             }
           </p>
         </div>
 
         {/* Resumo do Serviço */}
         <div style={resumoStyle}>
-          <h3>Resumo do Serviço Selecionado</h3>
+          <h3>Resumo do Serviço</h3>
           
           <div style={resumoItemStyle}>
             <strong>Serviço:</strong> {servico.nome}
@@ -145,6 +178,11 @@ const AgendamentoConfirmacao = () => {
           
           <div style={resumoItemStyle}>
             <strong>Local:</strong> {servico.local_atendimento}
+          </div>
+          
+          {/* ✅ NOVO: Horário Selecionado */}
+          <div style={resumoItemStyle}>
+            <strong>📅 Horário:</strong> {formatarHorario(horarioSelecionado)}
           </div>
           
           {servico.descricao && (
@@ -171,9 +209,6 @@ const AgendamentoConfirmacao = () => {
           <h3>Suas Informações</h3>
           <div style={resumoItemStyle}>
             <strong>Cliente:</strong> {user.email}
-          </div>
-          <div style={resumoItemStyle}>
-            <strong>Data do Agendamento:</strong> {new Date().toLocaleDateString('pt-BR')}
           </div>
         </div>
 
@@ -202,12 +237,21 @@ const AgendamentoConfirmacao = () => {
               {loading ? 'Confirmando...' : '✅ Confirmar Agendamento'}
             </button>
             
+            {/* ✅ NOVO: Botão para voltar e selecionar outro horário */}
             <button 
-              onClick={handleCancelar}
+              onClick={handleVoltarParaHorarios}
               disabled={loading}
               style={secondaryButtonStyle}
             >
-              ↩️ Cancelar
+              ↩️ Alterar Horário
+            </button>
+            
+            <button 
+              onClick={handleCancelar}
+              disabled={loading}
+              style={tertiaryButtonStyle}
+            >
+              ❌ Cancelar
             </button>
           </div>
         )}
@@ -228,7 +272,7 @@ const AgendamentoConfirmacao = () => {
   );
 };
 
-// Estilos
+// Estilos (mantenha os anteriores e adicione)
 const containerStyle = {
   display: 'flex',
   justifyContent: 'center',
@@ -277,9 +321,9 @@ const clienteInfoStyle = {
 
 const actionsStyle = {
   display: 'flex',
-  gap: '15px',
-  justifyContent: 'center',
-  flexWrap: 'wrap'
+  flexDirection: 'column',
+  gap: '10px',
+  justifyContent: 'center'
 };
 
 const successActionsStyle = {
@@ -295,11 +339,21 @@ const primaryButtonStyle = {
   borderRadius: '8px',
   fontSize: '16px',
   fontWeight: '600',
-  cursor: 'pointer',
-  minWidth: '200px'
+  cursor: 'pointer'
 };
 
 const secondaryButtonStyle = {
+  padding: '12px 24px',
+  background: '#3498db',
+  color: 'white',
+  border: 'none',
+  borderRadius: '8px',
+  fontSize: '16px',
+  fontWeight: '600',
+  cursor: 'pointer'
+};
+
+const tertiaryButtonStyle = {
   padding: '12px 24px',
   background: '#95a5a6',
   color: 'white',
@@ -307,8 +361,7 @@ const secondaryButtonStyle = {
   borderRadius: '8px',
   fontSize: '16px',
   fontWeight: '600',
-  cursor: 'pointer',
-  minWidth: '200px'
+  cursor: 'pointer'
 };
 
 const errorStyle = {

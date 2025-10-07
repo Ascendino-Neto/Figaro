@@ -1,7 +1,7 @@
 const db = require('../config/db');
 
 const Agendamento = {
-  // Criar novo agendamento
+  // Criar novo agendamento (MELHORADO)
   create: (agendamentoData) => {
     const {
       cliente_id,
@@ -15,7 +15,7 @@ const Agendamento = {
     return new Promise((resolve, reject) => {
       // Primeiro valida se o serviço existe e está ativo
       const validarServicoQuery = `
-        SELECT id, ativo FROM servicos 
+        SELECT id, ativo, tempo_duracao FROM servicos 
         WHERE id = ? AND ativo = 1
       `;
 
@@ -29,75 +29,202 @@ const Agendamento = {
           return reject(new Error('Serviço não encontrado ou indisponível'));
         }
 
-        // Agora cria o agendamento
-        const insertQuery = `
-          INSERT INTO agendamentos (
-            cliente_id, prestador_id, servico_id, 
-            data_agendamento, valor_servico, observacoes, status
-          ) 
-          VALUES (?, ?, ?, ?, ?, ?, 'agendado')
+        const duracaoServico = servico.tempo_duracao || 60;
+
+        // ✅ VALIDAÇÃO MELHORADA: Verificar disponibilidade real
+        const dateUtils = require('../utils/DateUtils');
+        const horarioFim = dateUtils.calcularHorarioTermino(data_agendamento, duracaoServico);
+
+        const verificarDisponibilidadeQuery = `
+          SELECT COUNT(*) as count
+          FROM agendamentos 
+          WHERE prestador_id = ? 
+            AND status NOT IN ('cancelado', 'ausente')
+            AND (
+              (data_agendamento BETWEEN ? AND ?)
+              OR (datetime(data_agendamento, '+' || (COALESCE(tempo_duracao, 60)) || ' minutes') BETWEEN ? AND ?)
+              OR (? BETWEEN data_agendamento AND datetime(data_agendamento, '+' || (COALESCE(tempo_duracao, 60)) || ' minutes'))
+              OR (? BETWEEN data_agendamento AND datetime(data_agendamento, '+' || (COALESCE(tempo_duracao, 60)) || ' minutes'))
+            )
         `;
 
         const params = [
-          cliente_id,
           prestador_id,
-          servico_id,
           data_agendamento,
-          valor_servico,
-          observacoes || null
+          horarioFim,
+          data_agendamento,
+          horarioFim,
+          data_agendamento,
+          horarioFim
         ];
 
-        console.log('💾 Salvando agendamento:', {
-          cliente_id,
-          prestador_id,
-          servico_id,
-          data_agendamento,
-          valor_servico
-        });
-
-        db.run(insertQuery, params, function (err) {
+        db.get(verificarDisponibilidadeQuery, params, (err, result) => {
           if (err) {
-            console.error('❌ Erro ao criar agendamento:', err.message);
-            
-            if (err.message.includes('FOREIGN KEY constraint failed')) {
-              return reject(new Error('Cliente, prestador ou serviço inválido'));
-            }
-            
-            return reject(new Error('Erro ao criar agendamento no banco de dados'));
+            console.error('❌ Erro ao verificar disponibilidade:', err.message);
+            return reject(new Error('Erro ao verificar disponibilidade do horário'));
           }
 
-          console.log('✅ Agendamento criado com ID:', this.lastID);
+          if (result.count > 0) {
+            return reject(new Error('Horário indisponível. Este horário já foi reservado.'));
+          }
 
-          // Busca o agendamento criado com informações completas
-          const selectQuery = `
-            SELECT 
-              a.*,
-              c.nome as cliente_nome,
-              c.email as cliente_email,
-              p.nome as prestador_nome,
-              s.nome as servico_nome,
-              s.descricao as servico_descricao
-            FROM agendamentos a
-            LEFT JOIN clientes c ON a.cliente_id = c.id
-            LEFT JOIN prestadores p ON a.prestador_id = p.id
-            LEFT JOIN servicos s ON a.servico_id = s.id
-            WHERE a.id = ?
+          // Se chegou aqui, horário está disponível - criar agendamento
+          const insertQuery = `
+            INSERT INTO agendamentos (
+              cliente_id, prestador_id, servico_id, 
+              data_agendamento, valor_servico, observacoes, status,
+              tempo_duracao
+            ) 
+            VALUES (?, ?, ?, ?, ?, ?, 'agendado', ?)
           `;
 
-          db.get(selectQuery, [this.lastID], (err, agendamentoCompleto) => {
+          const insertParams = [
+            cliente_id,
+            prestador_id,
+            servico_id,
+            data_agendamento,
+            valor_servico,
+            observacoes || null,
+            duracaoServico
+          ];
+
+          console.log('💾 Salvando agendamento:', {
+            cliente_id,
+            prestador_id,
+            servico_id,
+            data_agendamento,
+            valor_servico,
+            duracaoServico
+          });
+
+          db.run(insertQuery, insertParams, function (err) {
             if (err) {
-              console.error('❌ Erro ao buscar agendamento criado:', err.message);
-              // Ainda assim retorna sucesso, mas sem os dados completos
-              return resolve({
-                id: this.lastID,
-                message: 'Agendamento criado com sucesso, mas erro ao buscar detalhes'
-              });
+              console.error('❌ Erro ao criar agendamento:', err.message);
+              
+              if (err.message.includes('FOREIGN KEY constraint failed')) {
+                return reject(new Error('Cliente, prestador ou serviço inválido'));
+              }
+              
+              return reject(new Error('Erro ao criar agendamento no banco de dados'));
             }
 
-            resolve(agendamentoCompleto);
+            console.log('✅ Agendamento criado com ID:', this.lastID);
+
+            // Busca o agendamento criado com informações completas
+            const selectQuery = `
+              SELECT 
+                a.*,
+                c.nome as cliente_nome,
+                c.email as cliente_email,
+                p.nome as prestador_nome,
+                s.nome as servico_nome,
+                s.descricao as servico_descricao
+              FROM agendamentos a
+              LEFT JOIN clientes c ON a.cliente_id = c.id
+              LEFT JOIN prestadores p ON a.prestador_id = p.id
+              LEFT JOIN servicos s ON a.servico_id = s.id
+              WHERE a.id = ?
+            `;
+
+            db.get(selectQuery, [this.lastID], (err, agendamentoCompleto) => {
+              if (err) {
+                console.error('❌ Erro ao buscar agendamento criado:', err.message);
+                // Ainda assim retorna sucesso, mas sem os dados completos
+                return resolve({
+                  id: this.lastID,
+                  message: 'Agendamento criado com sucesso, mas erro ao buscar detalhes'
+                });
+              }
+
+              resolve(agendamentoCompleto);
+            });
           });
         });
       });
+    });
+  },
+
+  // ✅ NOVO: Buscar horários disponíveis para um prestador
+  getHorariosDisponiveis: (prestador_id, servico_id, dias = 7) => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        console.log('🕐 Buscando horários disponíveis para prestador:', prestador_id);
+        
+        // Primeiro busca o serviço para obter a duração
+        const servicoQuery = 'SELECT tempo_duracao FROM servicos WHERE id = ? AND ativo = 1';
+        
+        db.get(servicoQuery, [servico_id], async (err, servico) => {
+          if (err) {
+            console.error('❌ Erro ao buscar serviço:', err.message);
+            return reject(new Error('Erro ao buscar informações do serviço'));
+          }
+          
+          if (!servico) {
+            return reject(new Error('Serviço não encontrado ou indisponível'));
+          }
+          
+          const duracaoServico = servico.tempo_duracao || 60; // Default 60 minutos
+          
+          // Buscar agendamentos existentes do prestador
+          const agendamentosQuery = `
+            SELECT data_agendamento, tempo_duracao 
+            FROM agendamentos 
+            WHERE prestador_id = ? 
+              AND status NOT IN ('cancelado', 'ausente')
+              AND data_agendamento > datetime('now')
+          `;
+          
+          db.all(agendamentosQuery, [prestador_id], (err, agendamentos) => {
+            if (err) {
+              console.error('❌ Erro ao buscar agendamentos:', err.message);
+              return reject(new Error('Erro ao verificar agenda do prestador'));
+            }
+            
+            // Gerar horários disponíveis
+            const dateUtils = require('../utils/DateUtils');
+            const todosHorarios = dateUtils.gerarHorariosDisponiveis(
+              prestador_id, 
+              servico_id, 
+              dias, 
+              duracaoServico
+            );
+            
+            // Filtrar horários que não conflitam com agendamentos existentes
+            const horariosDisponiveis = todosHorarios.filter(horario => {
+              const horarioFim = dateUtils.calcularHorarioTermino(horario, duracaoServico);
+              
+              // Verificar se há conflito com agendamentos existentes
+              const temConflito = agendamentos.some(agendamento => {
+                const agendamentoFim = dateUtils.calcularHorarioTermino(
+                  agendamento.data_agendamento, 
+                  agendamento.tempo_duracao || 60
+                );
+                
+                return dateUtils.hasSobreposicao(
+                  horario,
+                  horarioFim,
+                  agendamento.data_agendamento,
+                  agendamentoFim
+                );
+              });
+              
+              return !temConflito && dateUtils.isExpediente(horario);
+            });
+            
+            console.log(`✅ ${horariosDisponiveis.length} horários disponíveis encontrados`);
+            
+            resolve({
+              horarios: horariosDisponiveis,
+              total: horariosDisponiveis.length,
+              duracao_servico: duracaoServico
+            });
+          });
+        });
+        
+      } catch (error) {
+        console.error('❌ Erro ao buscar horários disponíveis:', error.message);
+        reject(new Error('Erro interno ao buscar horários disponíveis'));
+      }
     });
   },
 
@@ -214,8 +341,8 @@ const Agendamento = {
           AND status NOT IN ('cancelado', 'ausente')
           AND (
             (data_agendamento BETWEEN ? AND ?)
-            OR (data_fim_previsto BETWEEN ? AND ?)
-            OR (? BETWEEN data_agendamento AND data_fim_previsto)
+            OR (datetime(data_agendamento, '+' || (COALESCE(tempo_duracao, 60)) || ' minutes') BETWEEN ? AND ?)
+            OR (? BETWEEN data_agendamento AND datetime(data_agendamento, '+' || (COALESCE(tempo_duracao, 60)) || ' minutes'))
           )
       `;
 
@@ -239,7 +366,7 @@ const Agendamento = {
   validarServico: (servico_id) => {
     return new Promise((resolve, reject) => {
       const query = `
-        SELECT id, nome, ativo, prestador_id
+        SELECT id, nome, ativo, prestador_id, tempo_duracao
         FROM servicos 
         WHERE id = ? AND ativo = 1
       `;
