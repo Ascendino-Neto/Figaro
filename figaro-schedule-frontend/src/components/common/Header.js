@@ -21,7 +21,7 @@ const Header = () => {
     navigate('/');
   };
 
-  // ? CORREÇÃO: Função para determinar o link do dashboard
+  // ? CORREï¿½ï¿½O: Funï¿½ï¿½o para determinar o link do dashboard
   const getDashboardLink = () => {
     if (user?.type === 'prestador') {
       return '/prestador/dashboard';
@@ -51,25 +51,25 @@ const Header = () => {
           {isAuthenticated ? (
             <>
               <span style={{ marginRight: '15px' }}>
-                Olá, {user?.email}
+                OlÃ¡, {user?.email}
               </span>
               
-              {/* ? CORREÇÃO: Link dinâmico para dashboard */}
+              {/* ? CORREï¿½ï¿½O: Link dinï¿½mico para dashboard */}
               <Link to={getDashboardLink()} style={navStyle}>
                 Dashboard
               </Link>
               
-              {/* ? NOVO: Link para Serviços Disponíveis (apenas clientes) */}
+              {/* ? NOVO: Link para Serviï¿½os Disponï¿½veis (apenas clientes) */}
               {user?.type === 'cliente' && (
                 <Link to="/servicos-cliente" style={navStyle}>
-                  Serviços Disponíveis
+                  ServiÃ§os DisponÃ­veis
                 </Link>
               )}
               
-              {/* ? Link para Meus Serviços (apenas prestadores) */}
+              {/* ? Link para Meus Serviï¿½os (apenas prestadores) */}
               {user?.type === 'prestador' && (
                 <Link to="/servicos" style={navStyle}>
-                  Meus Serviços
+                  Meus ServiÃ§os
                 </Link>
               )}
               

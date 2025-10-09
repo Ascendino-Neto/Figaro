@@ -11,7 +11,7 @@ const Home = () => {
 
       <div style={featuresStyle}>
         <div style={featureCardStyle}>
-          <h3>?? Cadastro de Clientes</h3>
+          <h3>Cadastro de Clientes</h3>
           <p>Gerencie seus clientes com validação de CPF e dados completos</p>
           <Link to="/cadastro/cliente" style={featureButtonStyle}>
             Cadastrar Cliente
@@ -19,7 +19,7 @@ const Home = () => {
         </div>
 
         <div style={featureCardStyle}>
-          <h3>?? área de Prestadores</h3>
+          <h3>Área de Prestadores</h3>
           <p>Cadastre e gerencie profissionais da sua equipe</p>
           <Link to="/cadastro/prestador" style={featureButtonStyle}>
             Cadastrar Prestador
@@ -27,7 +27,7 @@ const Home = () => {
         </div>
 
         <div style={featureCardStyle}>
-          <h3>?? Sistema de Login</h3>
+          <h3>Sistema de Login</h3>
           <p>Acesso seguro para clientes e prestadores</p>
           <Link to="/login" style={featureButtonStyle}>
             Fazer Login

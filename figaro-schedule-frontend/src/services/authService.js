@@ -3,7 +3,7 @@ import api from './api';
 export const authService = {
   async login(loginData) {
     try {
-      // ? Agora usa a rota de AUTENTICAÇÃO, não de criação
+      // ? Agora usa a rota de AUTENTICAï¿½ï¿½O, nï¿½o de criaï¿½ï¿½o
       const payload = {
         email: loginData.email,
         senha: loginData.senha
@@ -12,11 +12,12 @@ export const authService = {
       const response = await api.post('/auth/login', payload);
       
       if (response.data.success) {
-        // Salva os dados de autenticação
+        // Salva os dados de autenticaï¿½ï¿½o
         localStorage.setItem('authToken', response.data.token);
         localStorage.setItem('userEmail', response.data.user.email);
         localStorage.setItem('userType', response.data.user.tipo);
         localStorage.setItem('userId', response.data.user.id);
+        localStorage.setItem('userName', response.data.user.name);
         
         return response.data;
       } else {
@@ -29,7 +30,7 @@ export const authService = {
   },
 
   async logout() {
-    // Remove dados de autenticação
+    // Remove dados de autenticaÃ§Ã£o
     localStorage.removeItem('authToken');
     localStorage.removeItem('userEmail');
     localStorage.removeItem('userType');
@@ -44,7 +45,8 @@ export const authService = {
     return {
       id: localStorage.getItem('userId'),
       email: localStorage.getItem('userEmail'),
-      type: localStorage.getItem('userType')
+      type: localStorage.getItem('userType'),
+      name: localStorage.getItem('userName')
     };
   }
 };

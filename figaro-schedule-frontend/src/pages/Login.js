@@ -16,9 +16,9 @@ const Login = () => {
     setLoading(true);
     setMessage('');
 
-    // Valida��o b�sica no frontend
+    // Validação básica no frontend
     if (!formData.email || !formData.senha) {
-      setMessage('? Por favor, preencha todos os campos');
+      setMessage('❌ Por favor, preencha todos os campos');
       setLoading(false);
       return;
     }
@@ -27,9 +27,9 @@ const Login = () => {
       const result = await authService.login(formData);
       
       if (result.success) {
-        setMessage('? Login realizado com sucesso!');
+        setMessage('✅ Login realizado com sucesso!'); // ✅ ADICIONEI EMOJI AQUI
         
-        // Redireciona baseado no tipo de usu�rio
+        // Redireciona baseado no tipo de usuário
         setTimeout(() => {
           if (result.user.tipo === 'prestador') {
             navigate('/prestador/dashboard');
@@ -38,11 +38,11 @@ const Login = () => {
           }
         }, 1000);
       } else {
-        setMessage('? ' + result.error);
+        setMessage('❌ ' + result.error); // ✅ ADICIONEI EMOJI AQUI
       }
       
     } catch (error) {
-      setMessage('? ' + error.message);
+      setMessage('❌ ' + error.message); // ✅ ADICIONEI EMOJI AQUI
     } finally {
       setLoading(false);
     }
@@ -99,10 +99,12 @@ const Login = () => {
             <div style={{
               marginTop: '20px',
               padding: '10px',
-              background: message.includes('?') ? '#d4edda' : '#f8d7da',
-              color: message.includes('?') ? '#155724' : '#721c24',
               borderRadius: '5px',
-              textAlign: 'center'
+              textAlign: 'center',
+              // ✅ CORREÇÃO: Verificação correta dos emojis
+              background: message.includes('✅') ? '#d4edda' : '#f8d7da',
+              color: message.includes('✅') ? '#155724' : '#721c24',
+              border: `1px solid ${message.includes('✅') ? '#c3e6cb' : '#f5c6cb'}`
             }}>
               {message}
             </div>
@@ -110,7 +112,7 @@ const Login = () => {
         </form>
 
         <div style={footerStyle}>
-          <p>N�o tem uma conta? </p>
+          <p>Não tem uma conta? </p>
           <div style={registerLinksStyle}>
             <a href="/cadastro/cliente" style={linkStyle}>Cadastre-se como cliente</a>
             <span style={{ margin: '0 10px' }}>|</span>
@@ -127,7 +129,8 @@ const containerStyle = {
   display: 'flex',
   justifyContent: 'center',
   alignItems: 'center',
-  minHeight: '60vh'
+  minHeight: '60vh',
+  padding: '20px'
 };
 
 const cardStyle = {

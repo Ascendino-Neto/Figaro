@@ -12,37 +12,112 @@ const AgendamentoConfirmacao = () => {
   const [agendamentoConfirmado, setAgendamentoConfirmado] = useState(false);
   const user = authService.getCurrentUser();
 
+  // ✅ DEBUG: Log inicial - SEM estado que causa rerender
   useEffect(() => {
-    // ✅ MODIFICADO: Recupera o agendamento completo (serviço + horário)
+    console.log('🎯 AgendamentoConfirmacao - Montado');
+    console.log('📦 sessionStorage:', {
+      agendamentoCompleto: sessionStorage.getItem('agendamentoCompleto'),
+      servicoSelecionado: sessionStorage.getItem('servicoSelecionado')
+    });
+  }, []); // ✅ Array vazio - executa apenas uma vez
+
+  useEffect(() => {
+    // ✅ CORREÇÃO: Evita loop infinito
     const agendamentoCompleto = sessionStorage.getItem('agendamentoCompleto');
+    const servicoSelecionado = sessionStorage.getItem('servicoSelecionado');
     
-    if (!agendamentoCompleto) {
-      setMessage('❌ Nenhum agendamento encontrado. Por favor, selecione um serviço e horário primeiro.');
+    console.log('🔍 Buscando dados do agendamento:', {
+      agendamentoCompleto: !!agendamentoCompleto,
+      servicoSelecionado: !!servicoSelecionado,
+      servicoJaCarregado: !!servico,
+      horarioJaCarregado: !!horarioSelecionado
+    });
+
+    // Se já temos os dados carregados, não faz nada
+    if (servico && horarioSelecionado) {
+      console.log('✅ Dados já carregados, evitando rerender');
       return;
     }
 
-    if (!user || user.type !== 'cliente') {
+    if (!user) {
+      setMessage('❌ Você precisa estar logado para confirmar um agendamento.');
+      setTimeout(() => navigate('/login'), 2000);
+      return;
+    }
+
+    if (user.type !== 'cliente') {
       setMessage('❌ Esta funcionalidade é exclusiva para clientes.');
+      setTimeout(() => navigate('/dashboard'), 2000);
       return;
     }
 
     try {
-      const agendamentoData = JSON.parse(agendamentoCompleto);
-      setServico(agendamentoData);
-      setHorarioSelecionado(agendamentoData.horarioSelecionado);
+      // Cenário 1: Temos o agendamento completo (serviço + horário)
+      if (agendamentoCompleto) {
+        const agendamentoData = JSON.parse(agendamentoCompleto);
+        console.log('📦 Dados do agendamento completo:', agendamentoData);
+        
+        // ✅ VERIFICAÇÃO: Garante que temos todos os dados necessários
+        if (agendamentoData.id && agendamentoData.horarioSelecionado) {
+          // ✅ Só atualiza se for necessário (evita rerender desnecessário)
+          if (!servico || servico.id !== agendamentoData.id) {
+            setServico(agendamentoData);
+          }
+          if (!horarioSelecionado || horarioSelecionado !== agendamentoData.horarioSelecionado) {
+            setHorarioSelecionado(agendamentoData.horarioSelecionado);
+          }
+          setMessage(''); // Limpa mensagens anteriores
+        } else {
+          throw new Error('Dados do agendamento incompletos');
+        }
+      }
+      // Cenário 2: Temos apenas o serviço (redirecionamento direto)
+      else if (servicoSelecionado && !agendamentoCompleto) {
+        const servicoData = JSON.parse(servicoSelecionado);
+        console.log('📦 Apenas serviço selecionado, redirecionando...', servicoData);
+        setMessage('⚠️  Por favor, selecione um horário primeiro.');
+        
+        // Redireciona para seleção de horário
+        setTimeout(() => {
+          navigate('/agendamento/horario');
+        }, 1500);
+      }
+      // Cenário 3: Nenhum dado encontrado
+      else if (!agendamentoCompleto && !servicoSelecionado) {
+        setMessage('❌ Nenhum agendamento encontrado. Por favor, selecione um serviço primeiro.');
+        
+        // Redireciona para serviços após 3 segundos
+        setTimeout(() => {
+          navigate('/servicos-cliente');
+        }, 3000);
+      }
     } catch (error) {
-      setMessage('❌ Erro ao carregar informações do agendamento.');
+      console.error('❌ Erro ao carregar informações do agendamento:', error);
+      setMessage('❌ Erro ao carregar informações do agendamento. Por favor, tente novamente.');
+      
+      // Limpa dados corrompidos
+      sessionStorage.removeItem('agendamentoCompleto');
+      sessionStorage.removeItem('servicoSelecionado');
     }
-  }, [user]);
+  // ✅ CORREÇÃO: Dependências específicas
+  }, [user, navigate, servico, horarioSelecionado]);
 
   const handleConfirmarAgendamento = async () => {
-    if (!servico || !user || !horarioSelecionado) return;
+    if (!servico || !user || !horarioSelecionado) {
+      setMessage('❌ Dados incompletos. Verifique se selecionou um serviço e horário.');
+      return;
+    }
 
     setLoading(true);
     setMessage('');
 
     try {
-      // ✅ MODIFICADO: Usa o horário selecionado
+      console.log('📝 Confirmando agendamento com dados:', {
+        servico: servico.nome,
+        horario: horarioSelecionado,
+        user: user.email
+      });
+
       const agendamentoData = {
         servico_id: servico.id,
         prestador_id: servico.prestador_id,
@@ -52,16 +127,17 @@ const AgendamentoConfirmacao = () => {
         observacoes: `Agendamento realizado via sistema - ${new Date().toLocaleString('pt-BR')}`
       };
 
-      // Valida dados antes do envio
-      agendamentoService.validarDadosAgendamento(agendamentoData);
+      console.log('🚀 Enviando para API:', agendamentoData);
 
       const result = await agendamentoService.createAgendamento(agendamentoData);
+      
+      console.log('✅ Resposta da API:', result);
       
       if (result.success) {
         setAgendamentoConfirmado(true);
         setMessage('✅ Agendamento confirmado com sucesso!');
         
-        // ✅ MODIFICADO: Limpa os dados do agendamento completo
+        // Limpa dados
         sessionStorage.removeItem('agendamentoCompleto');
         sessionStorage.removeItem('servicoSelecionado');
         
@@ -73,10 +149,11 @@ const AgendamentoConfirmacao = () => {
         setMessage('❌ ' + result.error);
       }
     } catch (error) {
+      console.error('❌ Erro ao confirmar agendamento:', error);
       setMessage('❌ Erro ao confirmar agendamento: ' + error.message);
       
-      // Se o erro for de horário indisponível, oferece voltar para seleção
-      if (error.message.includes('não está mais disponível') || error.message.includes('indisponível')) {
+      if (error.message.includes('indisponível')) {
+        setMessage('❌ ' + error.message + ' Redirecionando para seleção de horário...');
         setTimeout(() => {
           navigate('/agendamento/horario');
         }, 2000);
@@ -87,6 +164,10 @@ const AgendamentoConfirmacao = () => {
   };
 
   const handleVoltarParaHorarios = () => {
+    if (servico) {
+      sessionStorage.setItem('servicoSelecionado', JSON.stringify(servico));
+    }
+    sessionStorage.removeItem('agendamentoCompleto');
     navigate('/agendamento/horario');
   };
 
@@ -116,7 +197,8 @@ const AgendamentoConfirmacao = () => {
     });
   };
 
-  if (message && !servico) {
+  // Renderização condicional
+  if (message && !servico && !agendamentoConfirmado) {
     return (
       <div style={containerStyle}>
         <div style={cardStyle}>
@@ -135,12 +217,13 @@ const AgendamentoConfirmacao = () => {
     );
   }
 
-  if (!servico) {
+  if (!servico && !agendamentoConfirmado) {
     return (
       <div style={containerStyle}>
         <div style={cardStyle}>
           <div style={loadingStyle}>
             <h2>Carregando...</h2>
+            <p>Preparando confirmação do agendamento</p>
           </div>
         </div>
       </div>
@@ -154,116 +237,70 @@ const AgendamentoConfirmacao = () => {
           <h1>
             {agendamentoConfirmado ? '🎉 Agendamento Confirmado!' : '📝 Confirmar Agendamento'}
           </h1>
-          <p>
-            {agendamentoConfirmado 
-              ? 'Seu agendamento foi realizado com sucesso!'
-              : 'Revise os detalhes antes de confirmar'
-            }
-          </p>
         </div>
 
         {/* Resumo do Serviço */}
         <div style={resumoStyle}>
           <h3>Resumo do Serviço</h3>
-          
           <div style={resumoItemStyle}>
-            <strong>Serviço:</strong> {servico.nome}
+            <strong>Serviço:</strong> {servico?.nome}
           </div>
-          
-          {servico.prestador_nome && (
+          {servico?.prestador_nome && (
             <div style={resumoItemStyle}>
               <strong>Prestador:</strong> {servico.prestador_nome}
             </div>
           )}
-          
           <div style={resumoItemStyle}>
-            <strong>Local:</strong> {servico.local_atendimento}
+            <strong>Local:</strong> {servico?.local_atendimento}
           </div>
-          
-          {/* ✅ NOVO: Horário Selecionado */}
           <div style={resumoItemStyle}>
             <strong>📅 Horário:</strong> {formatarHorario(horarioSelecionado)}
           </div>
-          
-          {servico.descricao && (
-            <div style={resumoItemStyle}>
-              <strong>Descrição:</strong> {servico.descricao}
-            </div>
-          )}
-          
-          {servico.valor && (
+          {servico?.valor && (
             <div style={resumoItemStyle}>
               <strong>Valor:</strong> {formatarValor(servico.valor)}
             </div>
           )}
-          
-          {servico.tempo_duracao && (
-            <div style={resumoItemStyle}>
-              <strong>Duração Estimada:</strong> {servico.tempo_duracao} minutos
-            </div>
-          )}
-        </div>
-
-        {/* Informações do Cliente */}
-        <div style={clienteInfoStyle}>
-          <h3>Suas Informações</h3>
-          <div style={resumoItemStyle}>
-            <strong>Cliente:</strong> {user.email}
-          </div>
         </div>
 
         {/* Mensagem de Feedback */}
         {message && (
-          <div style={{
-            padding: '15px',
-            borderRadius: '8px',
-            marginBottom: '20px',
-            background: message.includes('✅') ? '#d4edda' : '#f8d7da',
-            color: message.includes('✅') ? '#155724' : '#721c24',
-            textAlign: 'center'
-          }}>
+          <div style={messageStyle(message)}>
             {message}
           </div>
         )}
 
         {/* Ações */}
-        {!agendamentoConfirmado && (
+        {!agendamentoConfirmado ? (
           <div style={actionsStyle}>
             <button 
               onClick={handleConfirmarAgendamento}
               disabled={loading}
               style={primaryButtonStyle}
             >
-              {loading ? 'Confirmando...' : '✅ Confirmar Agendamento'}
+              {loading ? '🔄 Confirmando...' : '✅ Confirmar Agendamento'}
             </button>
-            
-            {/* ✅ NOVO: Botão para voltar e selecionar outro horário */}
             <button 
               onClick={handleVoltarParaHorarios}
-              disabled={loading}
               style={secondaryButtonStyle}
             >
               ↩️ Alterar Horário
             </button>
-            
             <button 
               onClick={handleCancelar}
-              disabled={loading}
               style={tertiaryButtonStyle}
             >
               ❌ Cancelar
             </button>
           </div>
-        )}
-
-        {agendamentoConfirmado && (
+        ) : (
           <div style={successActionsStyle}>
-            <p>Você será redirecionado automaticamente para o dashboard...</p>
+            <p>✅ Agendamento confirmado com sucesso!</p>
             <button 
               onClick={() => navigate('/dashboard')}
               style={primaryButtonStyle}
             >
-              Ir para Dashboard Agora
+              Ir para Dashboard
             </button>
           </div>
         )}
@@ -272,7 +309,7 @@ const AgendamentoConfirmacao = () => {
   );
 };
 
-// Estilos (mantenha os anteriores e adicione)
+// Estilos (mantenha os mesmos do código anterior)
 const containerStyle = {
   display: 'flex',
   justifyContent: 'center',
@@ -311,24 +348,17 @@ const resumoItemStyle = {
   fontSize: '15px'
 };
 
-const clienteInfoStyle = {
-  background: '#e8f4fd',
-  padding: '20px',
-  borderRadius: '8px',
-  marginBottom: '20px',
-  border: '1px solid #b3d9ff'
-};
-
 const actionsStyle = {
   display: 'flex',
   flexDirection: 'column',
-  gap: '10px',
-  justifyContent: 'center'
+  gap: '10px'
 };
 
 const successActionsStyle = {
   textAlign: 'center',
-  padding: '20px'
+  padding: '20px',
+  background: '#d4edda',
+  borderRadius: '8px'
 };
 
 const primaryButtonStyle = {
@@ -375,5 +405,14 @@ const loadingStyle = {
   padding: '40px',
   color: '#7f8c8d'
 };
+
+const messageStyle = (message) => ({
+  padding: '15px',
+  borderRadius: '8px',
+  marginBottom: '20px',
+  background: message.includes('✅') ? '#d4edda' : '#f8d7da',
+  color: message.includes('✅') ? '#155724' : '#721c24',
+  textAlign: 'center'
+});
 
 export default AgendamentoConfirmacao;

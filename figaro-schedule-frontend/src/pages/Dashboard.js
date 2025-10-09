@@ -7,9 +7,9 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const user = authService.getCurrentUser();
 
-  // ? CORRE«√O: Remove o redirecionamento autom·tico
-  // O redirecionamento j· foi feito no Login.js
-  // Se um prestador chegou aqui, È porque clicou no link errado
+  // ? CORREÔøΩÔøΩO: Remove o redirecionamento automÔøΩtico
+  // O redirecionamento jÔøΩ foi feito no Login.js
+  // Se um prestador chegou aqui, ÔøΩ porque clicou no link errado
   
   // Se for cliente, mostra dashboard do cliente
   if (user?.type === 'cliente') {
@@ -19,21 +19,21 @@ const Dashboard = () => {
           <h2 style={titleStyle}>Dashboard do Cliente</h2>
           
           <div style={welcomeStyle}>
-            <h3>?? Bem-vindo, {user.email}!</h3>
-            <p>¡rea exclusiva para clientes da FigaroSchedule</p>
+            <h3>Bem-vindo, {user.email}!</h3>
+            <p>√Årea exclusiva para clientes da FigaroSchedule</p>
           </div>
 
           <div style={featuresGridStyle}>
             <div style={featureCardStyle}>
-              <h4>?? Agendar ServiÁo</h4>
-              <p>Agende seu corte de cabelo, barba e outros serviÁos</p>
+              <h4>Agendar Servi√ßo</h4>
+              <p>Agende seu corte de cabelo, barba e outros servi√ßos</p>
               <button style={featureButtonStyle}>
                 Fazer Agendamento
               </button>
             </div>
 
             <div style={featureCardStyle}>
-              <h4>?? Meus Agendamentos</h4>
+              <h4>Meus Agendamentos</h4>
               <p>Visualize e gerencie seus agendamentos</p>
               <button style={featureButtonStyle}>
                 Ver Agendamentos
@@ -41,18 +41,18 @@ const Dashboard = () => {
             </div>
 
             <div style={featureCardStyle}>
-              <h4>?? Meu Perfil</h4>
-              <p>Atualize suas informaÁıes pessoais</p>
+              <h4>Meu Perfil</h4>
+              <p>Atualize suas informa√ß√µes pessoais</p>
               <button style={featureButtonStyle}>
                 Editar Perfil
               </button>
             </div>
 
             <div style={featureCardStyle}>
-              <h4>?? ServiÁos DisponÌveis</h4>
-              <p>ConheÁa todos os serviÁos oferecidos</p>
+              <h4>Servi√ßos Dispon√≠veis</h4>
+              <p>Conhe√ßa todos os servi√ßos oferecidos</p>
               <Link to="/servicos" style={featureLinkStyle}>
-                Ver ServiÁos
+                Ver Servi√ßos
               </Link>
             </div>
           </div>
@@ -61,15 +61,15 @@ const Dashboard = () => {
     );
   }
 
-  // ? CORRE«√O: Se for prestador, mostra mensagem de erro
+  // ? CORREÔøΩÔøΩO: Se for prestador, mostra mensagem de erro
   if (user?.type === 'prestador') {
     return (
       <div style={containerStyle}>
         <div style={cardStyle}>
           <div style={errorStyle}>
             <h3>?? Acesso Restrito</h3>
-            <p>Esta ·rea È exclusiva para clientes.</p>
-            <p>VocÍ est· logado como <strong>prestador</strong>.</p>
+            <p>Esta √°rea √© exclusiva para clientes.</p>
+            <p>Voc√™ est√° logado como <strong>prestador</strong>.</p>
             <Link to="/prestador/dashboard" style={primaryButtonStyle}>
               Ir para Dashboard do Prestador
             </Link>
