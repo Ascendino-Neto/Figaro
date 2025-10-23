@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
+import { servicoService } from '../../services/servicoService';
 
 const ServicoCardCliente = ({ servico }) => {
   const navigate = useNavigate();
