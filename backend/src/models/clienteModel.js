@@ -1,6 +1,6 @@
 const db = require('../config/db');
 
-// FunÁ„o para validar CPF (mantida igual)
+// Fun√ß√£o para validar CPF (mantida igual)
 function validarCPF(cpf) {
   cpf = cpf.replace(/[^\d]+/g, '');
   
@@ -48,40 +48,40 @@ const Cliente = {
   create: async (data) => {
     const { nome, cpf, telefone, email } = data;
 
-    // ? VALIDA«√O FLEXÕVEL DE CPF (mantida)
+    // ‚úÖ VALIDA√á√ÉO FLEX√çVEL DE CPF (mantida)
     const cpfLimpo = cpf.replace(/\D/g, '');
     if (cpfLimpo.length !== 11) {
-      throw new Error("CPF inv·lido. Deve conter 11 dÌgitos");
+      throw new Error("CPF inv√°lido. Deve conter 11 d√≠gitos");
     }
 
-    // ? VALIDA«√O FLEXÕVEL DE TELEFONE (mantida)
+    // ‚úÖ VALIDA√á√ÉO FLEX√çVEL DE TELEFONE (mantida)
     const telefoneLimpo = telefone.replace(/\D/g, '');
     if (telefoneLimpo.length < 10 || telefoneLimpo.length > 11) {
-      throw new Error("Telefone inv·lido. Deve conter 10 ou 11 dÌgitos (com DDD)");
+      throw new Error("Telefone inv√°lido. Deve conter 10 ou 11 d√≠gitos (com DDD)");
     }
 
-    // Formata para o padr„o do banco
+    // Formata para o padr√£o do banco
     const cpfFormatado = cpfLimpo.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
     const telefoneFormatado = telefoneLimpo.replace(/(\d{2})(\d{4,5})(\d{4})/, '($1) $2-$3');
 
     try {
-      // ? MUDAN«A: Usando $1, $2... e RETURNING *
+      // ‚úÖ MUDAN√áA: Usando $1, $2... e RETURNING *
       const query = `
         INSERT INTO clientes (nome, cpf, telefone, email)
         VALUES ($1, $2, $3, $4)
         RETURNING *
       `;
       
-      // ? MUDAN«A: await + db.query (n„o db.run)
+      // ‚úÖ MUDAN√áA: await + db.query (n√£o db.run)
       const result = await db.query(query, [nome, cpfFormatado, telefoneFormatado, email]);
       
-      // ? MUDAN«A: Retorna result.rows[0] (n„o this.lastID)
+      // ‚úÖ MUDAN√áA: Retorna result.rows[0] (n√£o this.lastID)
       return result.rows[0];
       
     } catch (error) {
-      // ? MUDAN«A: CÛdigo de erro especÌfico do PostgreSQL
-      if (error.code === '23505') { // ViolaÁ„o de unique constraint
-        throw new Error("CPF ou e-mail j· cadastrado.");
+      // ‚úÖ MUDAN√áA: C√≥digo de erro espec√≠fico do PostgreSQL
+      if (error.code === '23505') { // Viola√ß√£o de unique constraint
+        throw new Error("CPF ou e-mail j√° cadastrado.");
       }
       throw new Error("Erro ao salvar no banco de dados: " + error.message);
     }
@@ -90,10 +90,10 @@ const Cliente = {
   // Buscar cliente por CPF (ATUALIZADO)
   findByCpf: async (cpf) => {
     try {
-      // ? MUDAN«A: $1 em vez de ?
+      // ‚úÖ MUDAN√áA: $1 em vez de ?
       const query = "SELECT * FROM clientes WHERE cpf = $1";
       const result = await db.query(query, [cpf]);
-      return result.rows[0]; // ? Retorna a primeira linha ou null
+      return result.rows[0]; // ‚úÖ Retorna a primeira linha ou null
     } catch (error) {
       console.error('Erro ao buscar cliente por CPF:', error);
       throw error;
@@ -103,7 +103,7 @@ const Cliente = {
   // Buscar cliente por ID (ATUALIZADO)
   findById: async (id) => {
     try {
-      // ? MUDAN«A: $1 em vez de ?
+      // ‚úÖ MUDAN√áA: $1 em vez de ?
       const query = "SELECT * FROM clientes WHERE id = $1";
       const result = await db.query(query, [id]);
       return result.rows[0];
@@ -116,7 +116,7 @@ const Cliente = {
   // Buscar cliente por email (ATUALIZADO)
   findByEmail: async (email) => {
     try {
-      // ? MUDAN«A: $1 em vez de ?
+      // ‚úÖ MUDAN√áA: $1 em vez de ?
       const query = "SELECT * FROM clientes WHERE email = $1";
       const result = await db.query(query, [email]);
       return result.rows[0];
@@ -126,14 +126,25 @@ const Cliente = {
     }
   },
 
+  findAll: async () => {
+  try {
+    const query = "SELECT * FROM clientes ORDER BY nome";
+    const result = await db.query(query);
+    return result.rows;
+  } catch (error) {
+    console.error('‚ùå Erro ao buscar todos os clientes:', error);
+    throw error;
+  }
+},
+
   // Deletar cliente por email (ATUALIZADO)
   deleteByEmail: async (email) => {
     try {
-      // ? MUDAN«A: $1 em vez de ?
+      // ‚úÖ MUDAN√áA: $1 em vez de ?
       const query = "DELETE FROM clientes WHERE email = $1";
       const result = await db.query(query, [email]);
       
-      // ? MUDAN«A: result.rowCount em vez de this.changes
+      // ‚úÖ MUDAN√áA: result.rowCount em vez de this.changes
       return { deleted: result.rowCount };
     } catch (error) {
       console.error('Erro ao deletar cliente:', error);

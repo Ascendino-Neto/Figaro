@@ -15,7 +15,7 @@ const authController = {
         });
       }
 
-      // ✅ BUSCA CORRETA com JOIN
+      // Buscar usuário
       const userQuery = `
         SELECT 
           u.id as usuario_id,
@@ -35,7 +35,7 @@ const authController = {
 
       const user = await db.get(userQuery, [email]);
 
-      console.log('🔍 Usuário encontrado no banco:', user);
+      console.log('🔍 Usuário encontrado:', user);
 
       if (!user) {
         return res.status(404).json({
@@ -44,7 +44,7 @@ const authController = {
         });
       }
 
-      // Verifica a senha
+      // Verifica a senha (texto puro por enquanto)
       if (user.senha !== senha) {
         return res.status(401).json({
           success: false,
@@ -54,33 +54,33 @@ const authController = {
 
       console.log('✅ Login bem-sucedido. Tipo:', user.tipo);
 
-      // ✅ CORREÇÃO CRÍTICA: Estrutura de resposta CORRETA
+      // Estrutura de resposta CORRETA
       let userResponse = {
         email: user.email,
         tipo: user.tipo
       };
 
-      // ✅ PARA CLIENTES: usar cliente_id como ID
+      // ✅ IDs corretos baseados no tipo
       if (user.tipo === 'cliente') {
-        if (!user.cliente_id) {
-          throw new Error("Usuário cliente sem cliente_id associado");
+        if (user.cliente_id) {
+          userResponse.id = user.cliente_id;
+          userResponse.nome = user.cliente_nome || user.email;
+          userResponse.cliente_id = user.cliente_id;
+        } else {
+          userResponse.id = user.usuario_id;
+          userResponse.nome = user.email;
         }
-        userResponse.id = user.cliente_id; // ← ID CORRETO para agendamentos
-        userResponse.nome = user.cliente_nome || user.email;
-        userResponse.cliente_id = user.cliente_id;
-      }
-      
-      // ✅ PARA PRESTADORES: usar prestador_id como ID
+      } 
       else if (user.tipo === 'prestador') {
-        if (!user.prestador_id) {
-          throw new Error("Usuário prestador sem prestador_id associado");
+        if (user.prestador_id) {
+          userResponse.id = user.prestador_id;
+          userResponse.nome = user.prestador_nome || user.email;
+          userResponse.prestador_id = user.prestador_id;
+        } else {
+          userResponse.id = user.usuario_id;
+          userResponse.nome = user.email;
         }
-        userResponse.id = user.prestador_id;
-        userResponse.nome = user.prestador_nome || user.email;
-        userResponse.prestador_id = user.prestador_id;
-      }
-      
-      // ✅ PARA ADMIN: usar usuario_id como ID
+      } 
       else if (user.tipo === 'admin') {
         userResponse.id = user.usuario_id;
         userResponse.nome = 'Administrador';
