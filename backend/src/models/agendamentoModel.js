@@ -1,8 +1,8 @@
 const db = require('../config/db');
 
 const Agendamento = {
-  // Criar novo agendamento (MELHORADO)
-  create: (agendamentoData) => {
+  // Criar novo agendamento (VERSÃO CORRIGIDA)
+  create: async (agendamentoData) => {
     const {
       cliente_id,
       prestador_id,
@@ -12,225 +12,227 @@ const Agendamento = {
       observacoes
     } = agendamentoData;
 
-    return new Promise((resolve, reject) => {
-      // Primeiro valida se o serviço existe e está ativo
-      const validarServicoQuery = `
-        SELECT id, ativo, tempo_duracao FROM servicos 
-        WHERE id = ? AND ativo = 1
+    try {
+      // ✅ VALIDAÇÃO ESPECÍFICA DE CADA CHAVE ESTRANGEIRA
+      console.log('🔍 Validando chaves estrangeiras...');
+
+      // 1. Validar CLIENTE
+      const clienteResult = await db.query('SELECT id, nome FROM clientes WHERE id = $1', [cliente_id]);
+      if (clienteResult.rows.length === 0) {
+        throw new Error(`Cliente com ID ${cliente_id} não encontrado`);
+      }
+      console.log(`   ✅ Cliente: ${clienteResult.rows[0].nome} (ID: ${cliente_id})`);
+
+      // 2. Validar PRESTADOR
+      const prestadorResult = await db.query('SELECT id, nome FROM prestadores WHERE id = $1', [prestador_id]);
+      if (prestadorResult.rows.length === 0) {
+        throw new Error(`Prestador com ID ${prestador_id} não encontrado`);
+      }
+      console.log(`   ✅ Prestador: ${prestadorResult.rows[0].nome} (ID: ${prestador_id})`);
+
+      // 3. Validar SERVIÇO (ativo)
+      const servicoResult = await db.query(
+        'SELECT id, nome, ativo, tempo_duracao FROM servicos WHERE id = $1 AND ativo = true', 
+        [servico_id]
+      );
+      if (servicoResult.rows.length === 0) {
+        throw new Error(`Serviço com ID ${servico_id} não encontrado ou inativo`);
+      }
+      console.log(`   ✅ Serviço: ${servicoResult.rows[0].nome} (ID: ${servico_id})`);
+
+      const servico = servicoResult.rows[0];
+      const duracaoServico = servico.tempo_duracao || 60;
+
+      // ✅ VERIFICAR DISPONIBILIDADE
+      console.log('🕐 Verificando disponibilidade do horário...');
+      const verificarDisponibilidadeQuery = `
+        SELECT COUNT(*) as count
+        FROM agendamentos 
+        WHERE prestador_id = $1 
+          AND status NOT IN ('cancelado', 'ausente')
+          AND (
+            (data_agendamento, data_agendamento + (tempo_duracao || ' minutes')::INTERVAL) 
+            OVERLAPS ($2::TIMESTAMP, $2::TIMESTAMP + ($3 || ' minutes')::INTERVAL)
+          )
       `;
 
-      db.get(validarServicoQuery, [servico_id], (err, servico) => {
-        if (err) {
-          console.error('❌ Erro ao validar serviço:', err.message);
-          return reject(new Error('Erro ao validar serviço'));
-        }
+      const disponibilidadeResult = await db.query(
+        verificarDisponibilidadeQuery, 
+        [prestador_id, data_agendamento, duracaoServico]
+      );
 
-        if (!servico) {
-          return reject(new Error('Serviço não encontrado ou indisponível'));
-        }
+      if (parseInt(disponibilidadeResult.rows[0].count) > 0) {
+        throw new Error('Horário indisponível. Este horário já foi reservado.');
+      }
+      console.log('   ✅ Horário disponível');
 
-        const duracaoServico = servico.tempo_duracao || 60;
+      // ✅ CRIAR AGENDAMENTO
+      const insertQuery = `
+        INSERT INTO agendamentos (
+          cliente_id, prestador_id, servico_id, 
+          data_agendamento, valor_servico, observacoes, status,
+          tempo_duracao
+        ) 
+        VALUES ($1, $2, $3, $4, $5, $6, 'agendado', $7)
+        RETURNING *
+      `;
 
-        // ✅ VALIDAÇÃO MELHORADA: Verificar disponibilidade real
-        const dateUtils = require('../utils/DateUtils');
-        const horarioFim = dateUtils.calcularHorarioTermino(data_agendamento, duracaoServico);
+      const insertParams = [
+        cliente_id,
+        prestador_id,
+        servico_id,
+        data_agendamento,
+        valor_servico,
+        observacoes || null,
+        duracaoServico
+      ];
 
-        const verificarDisponibilidadeQuery = `
-          SELECT COUNT(*) as count
-          FROM agendamentos 
-          WHERE prestador_id = ? 
-            AND status NOT IN ('cancelado', 'ausente')
-            AND (
-              (data_agendamento BETWEEN ? AND ?)
-              OR (datetime(data_agendamento, '+' || (COALESCE(tempo_duracao, 60)) || ' minutes') BETWEEN ? AND ?)
-              OR (? BETWEEN data_agendamento AND datetime(data_agendamento, '+' || (COALESCE(tempo_duracao, 60)) || ' minutes'))
-              OR (? BETWEEN data_agendamento AND datetime(data_agendamento, '+' || (COALESCE(tempo_duracao, 60)) || ' minutes'))
-            )
-        `;
-
-        const params = [
-          prestador_id,
-          data_agendamento,
-          horarioFim,
-          data_agendamento,
-          horarioFim,
-          data_agendamento,
-          horarioFim
-        ];
-
-        db.get(verificarDisponibilidadeQuery, params, (err, result) => {
-          if (err) {
-            console.error('❌ Erro ao verificar disponibilidade:', err.message);
-            return reject(new Error('Erro ao verificar disponibilidade do horário'));
-          }
-
-          if (result.count > 0) {
-            return reject(new Error('Horário indisponível. Este horário já foi reservado.'));
-          }
-
-          // Se chegou aqui, horário está disponível - criar agendamento
-          const insertQuery = `
-            INSERT INTO agendamentos (
-              cliente_id, prestador_id, servico_id, 
-              data_agendamento, valor_servico, observacoes, status,
-              tempo_duracao
-            ) 
-            VALUES (?, ?, ?, ?, ?, ?, 'agendado', ?)
-          `;
-
-          const insertParams = [
-            cliente_id,
-            prestador_id,
-            servico_id,
-            data_agendamento,
-            valor_servico,
-            observacoes || null,
-            duracaoServico
-          ];
-
-          console.log('💾 Salvando agendamento:', {
-            cliente_id,
-            prestador_id,
-            servico_id,
-            data_agendamento,
-            valor_servico,
-            duracaoServico
-          });
-
-          db.run(insertQuery, insertParams, function (err) {
-            if (err) {
-              console.error('❌ Erro ao criar agendamento:', err.message);
-              
-              if (err.message.includes('FOREIGN KEY constraint failed')) {
-                return reject(new Error('Cliente, prestador ou serviço inválido'));
-              }
-              
-              return reject(new Error('Erro ao criar agendamento no banco de dados'));
-            }
-
-            console.log('✅ Agendamento criado com ID:', this.lastID);
-
-            // Busca o agendamento criado com informações completas
-            const selectQuery = `
-              SELECT 
-                a.*,
-                c.nome as cliente_nome,
-                c.email as cliente_email,
-                p.nome as prestador_nome,
-                s.nome as servico_nome,
-                s.descricao as servico_descricao
-              FROM agendamentos a
-              LEFT JOIN clientes c ON a.cliente_id = c.id
-              LEFT JOIN prestadores p ON a.prestador_id = p.id
-              LEFT JOIN servicos s ON a.servico_id = s.id
-              WHERE a.id = ?
-            `;
-
-            db.get(selectQuery, [this.lastID], (err, agendamentoCompleto) => {
-              if (err) {
-                console.error('❌ Erro ao buscar agendamento criado:', err.message);
-                // Ainda assim retorna sucesso, mas sem os dados completos
-                return resolve({
-                  id: this.lastID,
-                  message: 'Agendamento criado com sucesso, mas erro ao buscar detalhes'
-                });
-              }
-
-              resolve(agendamentoCompleto);
-            });
-          });
-        });
+      console.log('💾 Salvando agendamento no PostgreSQL:', {
+        cliente_id,
+        prestador_id,
+        servico_id,
+        data_agendamento,
+        valor_servico,
+        duracaoServico
       });
-    });
+
+      const insertResult = await db.query(insertQuery, insertParams);
+      const agendamentoInserido = insertResult.rows[0];
+
+      console.log('✅ Agendamento criado com ID:', agendamentoInserido.id);
+
+      // ✅ BUSCAR DADOS COMPLETOS DO AGENDAMENTO
+      const selectQuery = `
+        SELECT 
+          a.*,
+          c.nome as cliente_nome,
+          c.email as cliente_email,
+          c.telefone as cliente_telefone,
+          p.nome as prestador_nome,
+          p.telefone as prestador_telefone,
+          s.nome as servico_nome,
+          s.descricao as servico_descricao,
+          s.local_atendimento
+        FROM agendamentos a
+        LEFT JOIN clientes c ON a.cliente_id = c.id
+        LEFT JOIN prestadores p ON a.prestador_id = p.id
+        LEFT JOIN servicos s ON a.servico_id = s.id
+        WHERE a.id = $1
+      `;
+
+      const completeResult = await db.query(selectQuery, [agendamentoInserido.id]);
+      
+      if (completeResult.rows[0]) {
+        console.log('🎉 Agendamento criado com sucesso!');
+        return completeResult.rows[0];
+      } else {
+        console.log('⚠️ Agendamento criado, mas erro ao buscar detalhes completos');
+        return agendamentoInserido;
+      }
+
+    } catch (error) {
+      console.error('❌ Erro ao criar agendamento:', error.message);
+      
+      // ✅ TRATAMENTO ESPECÍFICO DE ERROS POSTGRESQL
+      if (error.code === '23503') { // Foreign key violation
+        // Já tratamos as FKs acima, mas se ainda der erro, é algo específico
+        console.error('   🔍 Detalhe do erro FK:', error.detail);
+        throw new Error('Erro de integridade referencial: ' + error.detail);
+      }
+      if (error.code === '23514') { // Check constraint violation
+        throw new Error('Dados do agendamento inválidos: ' + error.message);
+      }
+      if (error.code === '23505') { // Unique constraint violation
+        throw new Error('Conflito de dados: ' + error.message);
+      }
+      
+      // Se for outro erro, propaga a mensagem original
+      throw error;
+    }
   },
 
-  // ✅ NOVO: Buscar horários disponíveis para um prestador
-  getHorariosDisponiveis: (prestador_id, servico_id, dias = 7) => {
-    return new Promise(async (resolve, reject) => {
-      try {
-        console.log('🕐 Buscando horários disponíveis para prestador:', prestador_id);
+  // Buscar horários disponíveis para um prestador
+  getHorariosDisponiveis: async (prestador_id, servico_id, dias = 7) => {
+    try {
+      console.log('🕐 Buscando horários disponíveis para prestador:', prestador_id);
+      
+      // ✅ VALIDAR PRESTADOR
+      const prestadorResult = await db.query('SELECT id, nome FROM prestadores WHERE id = $1', [prestador_id]);
+      if (prestadorResult.rows.length === 0) {
+        throw new Error(`Prestador com ID ${prestador_id} não encontrado`);
+      }
+
+      // ✅ VALIDAR SERVIÇO
+      const servicoQuery = 'SELECT tempo_duracao FROM servicos WHERE id = $1 AND ativo = true';
+      const servicoResult = await db.query(servicoQuery, [servico_id]);
+      
+      if (servicoResult.rows.length === 0) {
+        throw new Error('Serviço não encontrado ou indisponível');
+      }
+      
+      const duracaoServico = servicoResult.rows[0].tempo_duracao || 60;
+      
+      // Buscar agendamentos existentes do prestador
+      const agendamentosQuery = `
+        SELECT data_agendamento, tempo_duracao 
+        FROM agendamentos 
+        WHERE prestador_id = $1 
+          AND status NOT IN ('cancelado', 'ausente')
+          AND data_agendamento > NOW()
+      `;
+      
+      const agendamentosResult = await db.query(agendamentosQuery, [prestador_id]);
+      const agendamentos = agendamentosResult.rows;
+      
+      // Gerar horários disponíveis
+      const dateUtils = require('../utils/DateUtils');
+      const todosHorarios = dateUtils.gerarHorariosDisponiveis(
+        prestador_id, 
+        servico_id, 
+        dias, 
+        duracaoServico
+      );
+      
+      // Filtrar horários que não conflitam com agendamentos existentes
+      const horariosDisponiveis = todosHorarios.filter(horario => {
+        const horarioFim = dateUtils.calcularHorarioTermino(horario, duracaoServico);
         
-        // Primeiro busca o serviço para obter a duração
-        const servicoQuery = 'SELECT tempo_duracao FROM servicos WHERE id = ? AND ativo = 1';
-        
-        db.get(servicoQuery, [servico_id], async (err, servico) => {
-          if (err) {
-            console.error('❌ Erro ao buscar serviço:', err.message);
-            return reject(new Error('Erro ao buscar informações do serviço'));
-          }
+        // Verificar se há conflito com agendamentos existentes
+        const temConflito = agendamentos.some(agendamento => {
+          const agendamentoFim = dateUtils.calcularHorarioTermino(
+            agendamento.data_agendamento, 
+            agendamento.tempo_duracao || 60
+          );
           
-          if (!servico) {
-            return reject(new Error('Serviço não encontrado ou indisponível'));
-          }
-          
-          const duracaoServico = servico.tempo_duracao || 60; // Default 60 minutos
-          
-          // Buscar agendamentos existentes do prestador
-          const agendamentosQuery = `
-            SELECT data_agendamento, tempo_duracao 
-            FROM agendamentos 
-            WHERE prestador_id = ? 
-              AND status NOT IN ('cancelado', 'ausente')
-              AND data_agendamento > datetime('now')
-          `;
-          
-          db.all(agendamentosQuery, [prestador_id], (err, agendamentos) => {
-            if (err) {
-              console.error('❌ Erro ao buscar agendamentos:', err.message);
-              return reject(new Error('Erro ao verificar agenda do prestador'));
-            }
-            
-            // Gerar horários disponíveis
-            const dateUtils = require('../utils/DateUtils');
-            const todosHorarios = dateUtils.gerarHorariosDisponiveis(
-              prestador_id, 
-              servico_id, 
-              dias, 
-              duracaoServico
-            );
-            
-            // Filtrar horários que não conflitam com agendamentos existentes
-            const horariosDisponiveis = todosHorarios.filter(horario => {
-              const horarioFim = dateUtils.calcularHorarioTermino(horario, duracaoServico);
-              
-              // Verificar se há conflito com agendamentos existentes
-              const temConflito = agendamentos.some(agendamento => {
-                const agendamentoFim = dateUtils.calcularHorarioTermino(
-                  agendamento.data_agendamento, 
-                  agendamento.tempo_duracao || 60
-                );
-                
-                return dateUtils.hasSobreposicao(
-                  horario,
-                  horarioFim,
-                  agendamento.data_agendamento,
-                  agendamentoFim
-                );
-              });
-              
-              return !temConflito && dateUtils.isExpediente(horario);
-            });
-            
-            console.log(`✅ ${horariosDisponiveis.length} horários disponíveis encontrados`);
-            
-            resolve({
-              horarios: horariosDisponiveis,
-              total: horariosDisponiveis.length,
-              duracao_servico: duracaoServico
-            });
-          });
+          return dateUtils.hasSobreposicao(
+            horario,
+            horarioFim,
+            agendamento.data_agendamento,
+            agendamentoFim
+          );
         });
         
-      } catch (error) {
-        console.error('❌ Erro ao buscar horários disponíveis:', error.message);
-        reject(new Error('Erro interno ao buscar horários disponíveis'));
-      }
-    });
+        return !temConflito && dateUtils.isExpediente(horario);
+      });
+      
+      console.log(`✅ ${horariosDisponiveis.length} horários disponíveis encontrados`);
+      
+      return {
+        horarios: horariosDisponiveis,
+        total: horariosDisponiveis.length,
+        duracao_servico: duracaoServico,
+        prestador_nome: prestadorResult.rows[0].nome
+      };
+      
+    } catch (error) {
+      console.error('❌ Erro ao buscar horários disponíveis:', error.message);
+      throw new Error('Erro interno ao buscar horários disponíveis: ' + error.message);
+    }
   },
 
   // Buscar agendamento por ID
-  findById: (id) => {
-    return new Promise((resolve, reject) => {
+  findById: async (id) => {
+    try {
       const query = `
         SELECT 
           a.*,
@@ -247,19 +249,20 @@ const Agendamento = {
         LEFT JOIN clientes c ON a.cliente_id = c.id
         LEFT JOIN prestadores p ON a.prestador_id = p.id
         LEFT JOIN servicos s ON a.servico_id = s.id
-        WHERE a.id = ?
+        WHERE a.id = $1
       `;
 
-      db.get(query, [id], (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
+      const result = await db.query(query, [id]);
+      return result.rows[0];
+    } catch (error) {
+      console.error('❌ Erro ao buscar agendamento por ID:', error);
+      throw error;
+    }
   },
 
   // Buscar agendamentos por cliente
-  findByClienteId: (cliente_id) => {
-    return new Promise((resolve, reject) => {
+  findByClienteId: async (cliente_id) => {
+    try {
       const query = `
         SELECT 
           a.*,
@@ -269,20 +272,21 @@ const Agendamento = {
         FROM agendamentos a
         LEFT JOIN prestadores p ON a.prestador_id = p.id
         LEFT JOIN servicos s ON a.servico_id = s.id
-        WHERE a.cliente_id = ?
+        WHERE a.cliente_id = $1
         ORDER BY a.data_agendamento DESC
       `;
 
-      db.all(query, [cliente_id], (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
-      });
-    });
+      const result = await db.query(query, [cliente_id]);
+      return result.rows;
+    } catch (error) {
+      console.error('❌ Erro ao buscar agendamentos do cliente:', error);
+      throw error;
+    }
   },
 
   // Buscar agendamentos por prestador
-  findByPrestadorId: (prestador_id) => {
-    return new Promise((resolve, reject) => {
+  findByPrestadorId: async (prestador_id) => {
+    try {
       const query = `
         SELECT 
           a.*,
@@ -292,112 +296,211 @@ const Agendamento = {
         FROM agendamentos a
         LEFT JOIN clientes c ON a.cliente_id = c.id
         LEFT JOIN servicos s ON a.servico_id = s.id
-        WHERE a.prestador_id = ?
+        WHERE a.prestador_id = $1
         ORDER BY a.data_agendamento DESC
       `;
 
-      db.all(query, [prestador_id], (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
-      });
-    });
+      const result = await db.query(query, [prestador_id]);
+      return result.rows;
+    } catch (error) {
+      console.error('❌ Erro ao buscar agendamentos do prestador:', error);
+      throw error;
+    }
   },
 
   // Atualizar status do agendamento
-  updateStatus: (id, status) => {
-    return new Promise((resolve, reject) => {
-      const statusValidos = ['agendado', 'confirmado', 'em_andamento', 'concluido', 'cancelado', 'ausente'];
-      
-      if (!statusValidos.includes(status)) {
-        return reject(new Error('Status inválido'));
-      }
+  updateStatus: async (id, status) => {
+    const statusValidos = ['agendado', 'confirmado', 'em_andamento', 'concluido', 'cancelado', 'ausente'];
+    
+    if (!statusValidos.includes(status)) {
+      throw new Error('Status inválido');
+    }
 
+    try {
       const query = `
         UPDATE agendamentos 
-        SET status = ?, atualizado_em = CURRENT_TIMESTAMP
-        WHERE id = ?
+        SET status = $1, atualizado_em = CURRENT_TIMESTAMP
+        WHERE id = $2
+        RETURNING *
       `;
 
-      db.run(query, [status, id], function (err) {
-        if (err) reject(err);
-        else resolve({ 
-          updated: this.changes,
-          message: `Status atualizado para: ${status}`
-        });
-      });
-    });
+      const result = await db.query(query, [status, id]);
+      
+      if (result.rowCount === 0) {
+        throw new Error('Agendamento não encontrado');
+      }
+      
+      return { 
+        updated: result.rowCount,
+        message: `Status atualizado para: ${status}`,
+        agendamento: result.rows[0]
+      };
+    } catch (error) {
+      console.error('❌ Erro ao atualizar status:', error);
+      throw error;
+    }
   },
 
-  // Verificar disponibilidade (evitar conflitos de horário)
-  verificarDisponibilidade: (prestador_id, data_agendamento, duracao_minutos = 60) => {
-    return new Promise((resolve, reject) => {
-      const dataInicio = new Date(data_agendamento);
-      const dataFim = new Date(dataInicio.getTime() + duracao_minutos * 60000);
-
+  // Verificar disponibilidade
+  verificarDisponibilidade: async (prestador_id, data_agendamento, duracao_minutos = 60) => {
+    try {
       const query = `
         SELECT COUNT(*) as count
         FROM agendamentos 
-        WHERE prestador_id = ? 
+        WHERE prestador_id = $1 
           AND status NOT IN ('cancelado', 'ausente')
           AND (
-            (data_agendamento BETWEEN ? AND ?)
-            OR (datetime(data_agendamento, '+' || (COALESCE(tempo_duracao, 60)) || ' minutes') BETWEEN ? AND ?)
-            OR (? BETWEEN data_agendamento AND datetime(data_agendamento, '+' || (COALESCE(tempo_duracao, 60)) || ' minutes'))
+            (data_agendamento, data_agendamento + (tempo_duracao || ' minutes')::INTERVAL) 
+            OVERLAPS ($2::TIMESTAMP, $2::TIMESTAMP + ($3 || ' minutes')::INTERVAL)
           )
       `;
 
-      const params = [
-        prestador_id,
-        data_agendamento,
-        dataFim.toISOString(),
-        data_agendamento,
-        dataFim.toISOString(),
-        data_agendamento
-      ];
-
-      db.get(query, params, (err, row) => {
-        if (err) reject(err);
-        else resolve({ disponivel: row.count === 0 });
-      });
-    });
+      const result = await db.query(query, [prestador_id, data_agendamento, duracao_minutos]);
+      
+      return { disponivel: parseInt(result.rows[0].count) === 0 };
+    } catch (error) {
+      console.error('❌ Erro ao verificar disponibilidade:', error);
+      throw error;
+    }
   },
 
   // Validar se serviço existe e está ativo
-  validarServico: (servico_id) => {
-    return new Promise((resolve, reject) => {
+  validarServico: async (servico_id) => {
+    try {
       const query = `
         SELECT id, nome, ativo, prestador_id, tempo_duracao
         FROM servicos 
-        WHERE id = ? AND ativo = 1
+        WHERE id = $1 AND ativo = true
       `;
 
-      db.get(query, [servico_id], (err, servico) => {
-        if (err) reject(err);
-        else if (!servico) {
-          reject(new Error('Serviço não encontrado ou indisponível'));
-        } else {
-          resolve(servico);
-        }
-      });
-    });
+      const result = await db.query(query, [servico_id]);
+      
+      if (result.rows.length === 0) {
+        throw new Error('Serviço não encontrado ou indisponível');
+      }
+      
+      return result.rows[0];
+    } catch (error) {
+      console.error('❌ Erro ao validar serviço:', error);
+      throw error;
+    }
   },
 
-  // Deletar agendamento (apenas se ainda não foi confirmado)
-  delete: (id, cliente_id) => {
-    return new Promise((resolve, reject) => {
+  // Deletar agendamento
+  delete: async (id, cliente_id) => {
+    try {
       const query = `
         DELETE FROM agendamentos 
-        WHERE id = ? AND cliente_id = ? AND status = 'agendado'
+        WHERE id = $1 AND cliente_id = $2 AND status = 'agendado'
       `;
 
-      db.run(query, [id, cliente_id], function (err) {
-        if (err) reject(err);
-        else resolve({ 
-          deleted: this.changes,
-          message: this.changes > 0 ? 'Agendamento cancelado' : 'Agendamento não encontrado ou já confirmado'
-        });
-      });
-    });
+      const result = await db.query(query, [id, cliente_id]);
+      
+      const message = result.rowCount > 0 
+        ? 'Agendamento cancelado' 
+        : 'Agendamento não encontrado ou já confirmado';
+      
+      return { 
+        deleted: result.rowCount,
+        message: message
+      };
+    } catch (error) {
+      console.error('❌ Erro ao deletar agendamento:', error);
+      throw error;
+    }
+  },
+
+  // ✅ MÉTODOS ADICIONAIS
+
+  // Buscar agendamentos por status
+  findByStatus: async (status) => {
+    try {
+      const query = `
+        SELECT 
+          a.*,
+          c.nome as cliente_nome,
+          p.nome as prestador_nome,
+          s.nome as servico_nome
+        FROM agendamentos a
+        LEFT JOIN clientes c ON a.cliente_id = c.id
+        LEFT JOIN prestadores p ON a.prestador_id = p.id
+        LEFT JOIN servicos s ON a.servico_id = s.id
+        WHERE a.status = $1
+        ORDER BY a.data_agendamento ASC
+      `;
+
+      const result = await db.query(query, [status]);
+      return result.rows;
+    } catch (error) {
+      console.error('❌ Erro ao buscar agendamentos por status:', error);
+      throw error;
+    }
+  },
+
+  // Buscar agendamentos futuros
+  findFuturos: async (prestador_id = null) => {
+    try {
+      let query = `
+        SELECT 
+          a.*,
+          c.nome as cliente_nome,
+          p.nome as prestador_nome,
+          s.nome as servico_nome
+        FROM agendamentos a
+        LEFT JOIN clientes c ON a.cliente_id = c.id
+        LEFT JOIN prestadores p ON a.prestador_id = p.id
+        LEFT JOIN servicos s ON a.servico_id = s.id
+        WHERE a.data_agendamento > NOW()
+      `;
+      
+      let params = [];
+      
+      if (prestador_id) {
+        query += ' AND a.prestador_id = $1';
+        params.push(prestador_id);
+      }
+      
+      query += ' ORDER BY a.data_agendamento ASC';
+      
+      const result = await db.query(query, params);
+      return result.rows;
+    } catch (error) {
+      console.error('❌ Erro ao buscar agendamentos futuros:', error);
+      throw error;
+    }
+  },
+
+  // Estatísticas de agendamentos
+  getEstatisticas: async (prestador_id = null) => {
+    try {
+      let whereClause = '';
+      let params = [];
+      
+      if (prestador_id) {
+        whereClause = 'WHERE prestador_id = $1';
+        params.push(prestador_id);
+      }
+      
+      const query = `
+        SELECT 
+          COUNT(*) as total,
+          COUNT(CASE WHEN status = 'agendado' THEN 1 END) as agendados,
+          COUNT(CASE WHEN status = 'confirmado' THEN 1 END) as confirmados,
+          COUNT(CASE WHEN status = 'em_andamento' THEN 1 END) as em_andamento,
+          COUNT(CASE WHEN status = 'concluido' THEN 1 END) as concluidos,
+          COUNT(CASE WHEN status = 'cancelado' THEN 1 END) as cancelados,
+          COUNT(CASE WHEN status = 'ausente' THEN 1 END) as ausentes,
+          COUNT(CASE WHEN data_agendamento > NOW() THEN 1 END) as futuros
+        FROM agendamentos 
+        ${whereClause}
+      `;
+      
+      const result = await db.query(query, params);
+      return result.rows[0];
+    } catch (error) {
+      console.error('❌ Erro ao buscar estatísticas:', error);
+      throw error;
+    }
   }
 };
 

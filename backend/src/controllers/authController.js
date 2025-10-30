@@ -1,64 +1,105 @@
-const db = require('../config/db'); // ? IMPORTE O DB DIRETAMENTE
+const db = require('../config/db');
 
 const authController = {
   async authenticate(req, res) {
     try {
       const { email, senha } = req.body;
 
-      console.log('?? Tentativa de login:', email); // Debug
+      console.log('üîê Tentativa de login:', email);
 
-      // ValidaÁıes b·sicas
+      // Valida√ß√µes b√°sicas
       if (!email || !senha) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           success: false,
-          error: "E-mail e senha s„o obrigatÛrios" 
+          error: "E-mail e senha s√£o obrigat√≥rios"
         });
       }
 
-      // ? CORRE«√O: Busca o usu·rio na tabela usuarios (n„o apenas no ClienteLogin)
-      const user = await new Promise((resolve, reject) => {
-        db.get("SELECT * FROM usuarios WHERE email = ?", [email], (err, row) => {
-          if (err) reject(err);
-          else resolve(row);
-        });
-      });
+      // ‚úÖ BUSCA CORRETA com JOIN
+      const userQuery = `
+        SELECT 
+          u.id as usuario_id,
+          u.email,
+          u.senha, 
+          u.tipo,
+          u.cliente_id,
+          u.prestador_id,
+          c.id as cliente_real_id,
+          c.nome as cliente_nome,
+          p.nome as prestador_nome
+        FROM usuarios u 
+        LEFT JOIN clientes c ON u.cliente_id = c.id 
+        LEFT JOIN prestadores p ON u.prestador_id = p.id 
+        WHERE u.email = $1
+      `;
 
-      console.log('?? Usu·rio encontrado:', user); // Debug
+      const user = await db.get(userQuery, [email]);
+
+      console.log('üîç Usu√°rio encontrado no banco:', user);
 
       if (!user) {
-        return res.status(404).json({ 
+        return res.status(404).json({
           success: false,
-          error: "Usu·rio n„o encontrado" 
+          error: "Usu√°rio n√£o encontrado"
         });
       }
 
-      // 2. Verifica a senha (simples comparaÁ„o por enquanto)
+      // Verifica a senha
       if (user.senha !== senha) {
-        return res.status(401).json({ 
+        return res.status(401).json({
           success: false,
-          error: "Senha incorreta" 
+          error: "Senha incorreta"
         });
       }
 
-      console.log('? Login bem-sucedido. Tipo:', user.tipo); // Debug
+      console.log('‚úÖ Login bem-sucedido. Tipo:', user.tipo);
 
-      // ? CORRE«√O: Retorna o tipo REAL do usu·rio do banco
+      // ‚úÖ CORRE√á√ÉO CR√çTICA: Estrutura de resposta CORRETA
+      let userResponse = {
+        email: user.email,
+        tipo: user.tipo
+      };
+
+      // ‚úÖ PARA CLIENTES: usar cliente_id como ID
+      if (user.tipo === 'cliente') {
+        if (!user.cliente_id) {
+          throw new Error("Usu√°rio cliente sem cliente_id associado");
+        }
+        userResponse.id = user.cliente_id; // ‚Üê ID CORRETO para agendamentos
+        userResponse.nome = user.cliente_nome || user.email;
+        userResponse.cliente_id = user.cliente_id;
+      }
+      
+      // ‚úÖ PARA PRESTADORES: usar prestador_id como ID
+      else if (user.tipo === 'prestador') {
+        if (!user.prestador_id) {
+          throw new Error("Usu√°rio prestador sem prestador_id associado");
+        }
+        userResponse.id = user.prestador_id;
+        userResponse.nome = user.prestador_nome || user.email;
+        userResponse.prestador_id = user.prestador_id;
+      }
+      
+      // ‚úÖ PARA ADMIN: usar usuario_id como ID
+      else if (user.tipo === 'admin') {
+        userResponse.id = user.usuario_id;
+        userResponse.nome = 'Administrador';
+      }
+
+      console.log('üì§ Dados retornados para frontend:', userResponse);
+
       res.json({
         success: true,
         message: "Login realizado com sucesso!",
-        user: {
-          id: user.id,
-          email: user.email,
-          tipo: user.tipo // ? AGORA RETORNA O TIPO REAL
-        },
+        user: userResponse,
         token: "token_jwt_" + Date.now()
       });
 
     } catch (error) {
-      console.error('? Erro no login:', error); // Debug
-      res.status(500).json({ 
+      console.error('‚ùå Erro no login:', error);
+      res.status(500).json({
         success: false,
-        error: "Erro interno no servidor: " + error.message 
+        error: "Erro interno no servidor: " + error.message
       });
     }
   }

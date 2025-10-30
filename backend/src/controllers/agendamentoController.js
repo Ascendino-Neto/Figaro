@@ -6,7 +6,7 @@ const agendamentoController = {
   async create(req, res) {
     try {
       console.log('📝 Criando novo agendamento:', req.body);
-      
+     
       const {
         servico_id,
         prestador_id,
@@ -51,9 +51,9 @@ const agendamentoController = {
         observacoes: observacoes || null
       };
 
-      // Criar agendamento
+      // ✅ MUDANÇA: await em vez de Promise
       const agendamento = await Agendamento.create(agendamentoData);
-      
+     
       console.log('✅ Agendamento criado com sucesso:', agendamento.id);
 
       res.status(201).json({
@@ -64,7 +64,7 @@ const agendamentoController = {
 
     } catch (error) {
       console.error('❌ Erro ao criar agendamento:', error.message);
-      
+     
       if (error.message.includes('Serviço não encontrado')) {
         return res.status(404).json({
           success: false,
@@ -79,7 +79,7 @@ const agendamentoController = {
         });
       }
 
-      if (error.message.includes('FOREIGN KEY constraint failed')) {
+      if (error.message.includes('FOREIGN KEY') || error.message.includes('Cliente, prestador ou serviço inválido')) {
         return res.status(400).json({
           success: false,
           error: 'Dados inválidos: cliente, prestador ou serviço não encontrado'
@@ -93,7 +93,7 @@ const agendamentoController = {
     }
   },
 
-  // ✅ NOVO: Buscar horários disponíveis para agendamento
+  // ✅ BUSCAR horários disponíveis para agendamento (CORRIGIDO)
   async getHorariosDisponiveis(req, res) {
     try {
       const { prestador_id, servico_id, dias = 7 } = req.query;
@@ -108,13 +108,8 @@ const agendamentoController = {
         });
       }
 
-      // Validar se o prestador existe
-      const prestadorExiste = await new Promise((resolve, reject) => {
-        db.get("SELECT id FROM prestadores WHERE id = ?", [prestador_id], (err, row) => {
-          if (err) reject(err);
-          else resolve(!!row);
-        });
-      });
+      // ✅ MUDANÇA: await em vez de Promise
+      const prestadorExiste = await db.get("SELECT id FROM prestadores WHERE id = $1", [prestador_id]);
 
       if (!prestadorExiste) {
         return res.status(404).json({
@@ -123,10 +118,10 @@ const agendamentoController = {
         });
       }
 
-      // Buscar horários disponíveis
+      // ✅ MUDANÇA: await em vez de Promise
       const horariosDisponiveis = await Agendamento.getHorariosDisponiveis(
-        prestador_id, 
-        servico_id, 
+        parseInt(prestador_id),
+        parseInt(servico_id),
         parseInt(dias)
       );
 
@@ -140,7 +135,7 @@ const agendamentoController = {
 
     } catch (error) {
       console.error('❌ Erro ao buscar horários disponíveis:', error.message);
-      
+     
       if (error.message.includes('Serviço não encontrado')) {
         return res.status(404).json({
           success: false,
@@ -158,8 +153,9 @@ const agendamentoController = {
   // Buscar agendamento por ID
   async findById(req, res) {
     try {
+      // ✅ MUDANÇA: await em vez de Promise
       const agendamento = await Agendamento.findById(req.params.id);
-      
+     
       if (!agendamento) {
         return res.status(404).json({
           success: false,
@@ -184,8 +180,9 @@ const agendamentoController = {
   // Buscar agendamentos por cliente
   async findByCliente(req, res) {
     try {
+      // ✅ MUDANÇA: await em vez de Promise
       const agendamentos = await Agendamento.findByClienteId(req.params.cliente_id);
-      
+     
       res.json({
         success: true,
         agendamentos,
@@ -204,8 +201,9 @@ const agendamentoController = {
   // Buscar agendamentos por prestador
   async findByPrestador(req, res) {
     try {
+      // ✅ MUDANÇA: await em vez de Promise
       const agendamentos = await Agendamento.findByPrestadorId(req.params.prestador_id);
-      
+     
       res.json({
         success: true,
         agendamentos,
@@ -234,8 +232,9 @@ const agendamentoController = {
         });
       }
 
+      // ✅ MUDANÇA: await em vez de Promise
       const result = await Agendamento.updateStatus(id, status);
-      
+     
       if (result.updated === 0) {
         return res.status(404).json({
           success: false,
@@ -251,7 +250,7 @@ const agendamentoController = {
 
     } catch (error) {
       console.error('❌ Erro ao atualizar status:', error.message);
-      
+     
       if (error.message.includes('Status inválido')) {
         return res.status(400).json({
           success: false,
@@ -278,8 +277,9 @@ const agendamentoController = {
         });
       }
 
+      // ✅ MUDANÇA: await em vez de Promise
       const servico = await Agendamento.validarServico(servico_id);
-      
+     
       res.json({
         success: true,
         servico,
@@ -288,7 +288,7 @@ const agendamentoController = {
 
     } catch (error) {
       console.error('❌ Erro ao validar serviço:', error.message);
-      
+     
       if (error.message.includes('Serviço não encontrado')) {
         return res.status(404).json({
           success: false,
@@ -315,17 +315,18 @@ const agendamentoController = {
         });
       }
 
+      // ✅ MUDANÇA: await em vez de Promise
       const disponibilidade = await Agendamento.verificarDisponibilidade(
-        prestador_id, 
-        data_agendamento, 
+        prestador_id,
+        data_agendamento,
         duracao_minutos || 60
       );
 
       res.json({
         success: true,
         disponivel: disponibilidade.disponivel,
-        message: disponibilidade.disponivel 
-          ? 'Horário disponível para agendamento' 
+        message: disponibilidade.disponivel
+          ? 'Horário disponível para agendamento'
           : 'Horário indisponível'
       });
 
@@ -351,8 +352,9 @@ const agendamentoController = {
         });
       }
 
+      // ✅ MUDANÇA: await em vez de Promise
       const result = await Agendamento.delete(id, cliente_id);
-      
+     
       res.json({
         success: result.deleted > 0,
         message: result.message,
@@ -371,13 +373,16 @@ const agendamentoController = {
   // Listar todos os agendamentos (apenas para administração)
   async listAll(req, res) {
     try {
-      // Esta função precisaria ser implementada no model
-      // Por enquanto retornamos um array vazio
+      // ✅ MUDANÇA: Implementação real
+      const agendamentos = await Agendamento.findFuturos();
+     
       res.json({
         success: true,
-        agendamentos: [],
-        total: 0,
-        message: 'Funcionalidade em desenvolvimento'
+        agendamentos,
+        total: agendamentos.length,
+        message: agendamentos.length > 0 
+          ? `${agendamentos.length} agendamentos encontrados` 
+          : 'Nenhum agendamento encontrado'
       });
 
     } catch (error) {

@@ -4,7 +4,7 @@ const servicoController = {
   async create(req, res) {
     try {
       console.log('📝 Cadastrando serviço:', req.body);
-      
+     
       const { nome, descricao, local_atendimento, tecnicas_utilizadas, valor, tempo_duracao } = req.body;
 
       // Validações
@@ -28,8 +28,9 @@ const servicoController = {
         prestador_id
       };
 
+      // ✅ MUDANÇA: await em vez de Promise
       const servico = await Servico.create(servicoData);
-      
+     
       console.log('✅ Serviço cadastrado:', servico);
 
       res.status(201).json({
@@ -52,8 +53,9 @@ const servicoController = {
       // Obtém o ID do prestador logado (simulado por enquanto)
       const prestador_id = 1; // Em produção, viria do token JWT
 
+      // ✅ MUDANÇA: await em vez de Promise
       const servicos = await Servico.findByPrestadorId(prestador_id);
-      
+     
       res.json({
         success: true,
         servicos
@@ -70,14 +72,15 @@ const servicoController = {
 
   async getAll(req, res) {
     try {
+      // ✅ MUDANÇA: await em vez de Promise
       const servicos = await Servico.findAll();
-      
+     
       res.json({
         success: true,
         servicos,
         total: servicos.length,
-        message: servicos.length > 0 
-          ? `${servicos.length} serviços encontrados` 
+        message: servicos.length > 0
+          ? `${servicos.length} serviços encontrados`
           : 'Nenhum serviço cadastrado'
       });
 
@@ -93,7 +96,7 @@ const servicoController = {
   async getById(req, res) {
     try {
       const { id } = req.params;
-      
+     
       if (!id || isNaN(parseInt(id))) {
         return res.status(400).json({
           success: false,
@@ -101,8 +104,9 @@ const servicoController = {
         });
       }
 
+      // ✅ MUDANÇA: await em vez de Promise
       const servico = await Servico.findById(id);
-      
+     
       if (!servico) {
         return res.status(404).json({
           success: false,
@@ -158,8 +162,9 @@ const servicoController = {
         tempo_duracao: tempo_duracao || null
       };
 
+      // ✅ MUDANÇA: await em vez de Promise
       const servicoAtualizado = await Servico.update(id, prestador_id, servicoData);
-      
+     
       console.log('✅ Serviço atualizado:', servicoAtualizado);
 
       res.json({
@@ -170,7 +175,7 @@ const servicoController = {
 
     } catch (error) {
       console.error('❌ Erro ao atualizar serviço:', error);
-      
+     
       if (error.message.includes('não encontrado') || error.message.includes('permissão')) {
         return res.status(404).json({
           success: false,
@@ -188,7 +193,7 @@ const servicoController = {
   async delete(req, res) {
     try {
       const { id } = req.params;
-      
+     
       if (!id || isNaN(parseInt(id))) {
         return res.status(400).json({
           success: false,
@@ -198,8 +203,9 @@ const servicoController = {
 
       const prestador_id = 1; // Em produção, viria do token JWT
 
+      // ✅ MUDANÇA: await em vez de Promise
       const result = await Servico.delete(id, prestador_id);
-      
+     
       if (result.deleted === 0) {
         return res.status(404).json({
           success: false,
@@ -224,14 +230,15 @@ const servicoController = {
   // ✅ NOVO: Buscar serviços ativos (apenas serviços disponíveis)
   async getAtivos(req, res) {
     try {
+      // ✅ MUDANÇA: await em vez de Promise
       const servicos = await Servico.findAtivos();
-      
+     
       res.json({
         success: true,
         servicos,
         total: servicos.length,
-        message: servicos.length > 0 
-          ? `${servicos.length} serviços disponíveis` 
+        message: servicos.length > 0
+          ? `${servicos.length} serviços disponíveis`
           : 'Nenhum serviço disponível no momento'
       });
 

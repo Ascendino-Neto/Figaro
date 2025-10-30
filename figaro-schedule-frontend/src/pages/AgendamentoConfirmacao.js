@@ -103,65 +103,83 @@ const AgendamentoConfirmacao = () => {
   }, [user, navigate, servico, horarioSelecionado]);
 
   const handleConfirmarAgendamento = async () => {
-    if (!servico || !user || !horarioSelecionado) {
-      setMessage('❌ Dados incompletos. Verifique se selecionou um serviço e horário.');
-      return;
+  if (!servico || !user || !horarioSelecionado) {
+    setMessage('❌ Dados incompletos. Verifique se selecionou um serviço e horário.');
+    return;
+  }
+
+  setLoading(true);
+  setMessage('');
+
+  try {
+    console.log('🔍 DEBUG - Dados do usuário:', {
+      user: user,
+      user_id: user.id,
+      user_type: user.type,
+      cliente_id: user.cliente_id
+    });
+
+    // ✅ SOLUÇÃO TEMPORÁRIA: Buscar cliente_id correto
+    let cliente_id_correto = user.cliente_id || user.id;
+
+    // Se ainda for problema, buscar da API
+    if (!cliente_id_correto || cliente_id_correto > 10) { // IDs acima de 10 provavelmente são inválidos
+      console.log('🔄 Buscando ID correto da API...');
+      try {
+        const response = await fetch(`http://localhost:3000/api/clientes/email/${user.email}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.cliente) {
+            cliente_id_correto = data.cliente.id;
+            console.log('✅ ID correto encontrado via API:', cliente_id_correto);
+          }
+        }
+      } catch (apiError) {
+        console.error('❌ Erro ao buscar ID da API:', apiError);
+      }
     }
 
-    setLoading(true);
-    setMessage('');
+    console.log('🎯 Usando cliente_id:', cliente_id_correto);
 
-    try {
-      console.log('📝 Confirmando agendamento com dados:', {
-        servico: servico.nome,
-        horario: horarioSelecionado,
-        user: user.email
-      });
+    const agendamentoData = {
+      servico_id: servico.id,
+      prestador_id: servico.prestador_id,
+      cliente_id: cliente_id_correto,
+      data_agendamento: horarioSelecionado,
+      valor_servico: servico.valor,
+      observacoes: `Agendamento realizado via sistema - ${new Date().toLocaleString('pt-BR')}`
+    };
 
-      const agendamentoData = {
-        servico_id: servico.id,
-        prestador_id: servico.prestador_id,
-        cliente_id: user.id,
-        data_agendamento: horarioSelecionado,
-        valor_servico: servico.valor,
-        observacoes: `Agendamento realizado via sistema - ${new Date().toLocaleString('pt-BR')}`
-      };
+    console.log('🚀 Enviando agendamento:', agendamentoData);
 
-      console.log('🚀 Enviando para API:', agendamentoData);
-
-      const result = await agendamentoService.createAgendamento(agendamentoData);
+    const result = await agendamentoService.createAgendamento(agendamentoData);
+    
+    if (result.success) {
+      setAgendamentoConfirmado(true);
+      setMessage('✅ Agendamento confirmado com sucesso!');
       
-      console.log('✅ Resposta da API:', result);
+      sessionStorage.removeItem('agendamentoCompleto');
+      sessionStorage.removeItem('servicoSelecionado');
       
-      if (result.success) {
-        setAgendamentoConfirmado(true);
-        setMessage('✅ Agendamento confirmado com sucesso!');
-        
-        // Limpa dados
-        sessionStorage.removeItem('agendamentoCompleto');
-        sessionStorage.removeItem('servicoSelecionado');
-        
-        // Redireciona após 3 segundos
-        setTimeout(() => {
-          navigate('/dashboard');
-        }, 3000);
-      } else {
-        setMessage('❌ ' + result.error);
-      }
-    } catch (error) {
-      console.error('❌ Erro ao confirmar agendamento:', error);
-      setMessage('❌ Erro ao confirmar agendamento: ' + error.message);
-      
-      if (error.message.includes('indisponível')) {
-        setMessage('❌ ' + error.message + ' Redirecionando para seleção de horário...');
-        setTimeout(() => {
-          navigate('/agendamento/horario');
-        }, 2000);
-      }
-    } finally {
-      setLoading(false);
+      setTimeout(() => navigate('/dashboard'), 3000);
+    } else {
+      setMessage('❌ ' + result.error);
     }
-  };
+  } catch (error) {
+    console.error('❌ Erro completo:', error);
+    setMessage('❌ Erro ao confirmar agendamento: ' + error.message);
+    
+    // Forçar logout se for problema de ID
+    if (error.message.includes('Cliente com ID')) {
+      setTimeout(() => {
+        authService.logout();
+        navigate('/login');
+      }, 3000);
+    }
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleVoltarParaHorarios = () => {
     if (servico) {

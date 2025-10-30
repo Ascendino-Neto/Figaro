@@ -1,6 +1,6 @@
 const db = require('../config/db');
 
-// Fun√ß√£o para validar CPF
+// FunÁ„o para validar CPF (mantida igual)
 function validarCPF(cpf) {
   cpf = cpf.replace(/[^\d]+/g, '');
   
@@ -44,83 +44,102 @@ function validarCPF(cpf) {
 }
 
 const Cliente = {
-  // Criar cliente (US 1)
-  create: (data) => {
-  const { nome, cpf, telefone, email } = data;
+  // Criar cliente (ATUALIZADO para PostgreSQL)
+  create: async (data) => {
+    const { nome, cpf, telefone, email } = data;
 
-  // ‚úÖ VALIDA√á√ÉO FLEX√çVEL DE CPF
-  const cpfLimpo = cpf.replace(/\D/g, '');
-  if (cpfLimpo.length !== 11) {
-    throw new Error("CPF inv√°lido. Deve conter 11 d√≠gitos");
-  }
+    // ? VALIDA«√O FLEXÕVEL DE CPF (mantida)
+    const cpfLimpo = cpf.replace(/\D/g, '');
+    if (cpfLimpo.length !== 11) {
+      throw new Error("CPF inv·lido. Deve conter 11 dÌgitos");
+    }
 
-  // ‚úÖ VALIDA√á√ÉO FLEX√çVEL DE TELEFONE
-  const telefoneLimpo = telefone.replace(/\D/g, '');
-  if (telefoneLimpo.length < 10 || telefoneLimpo.length > 11) {
-    throw new Error("Telefone inv√°lido. Deve conter 10 ou 11 d√≠gitos (com DDD)");
-  }
+    // ? VALIDA«√O FLEXÕVEL DE TELEFONE (mantida)
+    const telefoneLimpo = telefone.replace(/\D/g, '');
+    if (telefoneLimpo.length < 10 || telefoneLimpo.length > 11) {
+      throw new Error("Telefone inv·lido. Deve conter 10 ou 11 dÌgitos (com DDD)");
+    }
 
-  return new Promise((resolve, reject) => {
-    // Formata para o padr√£o do banco
+    // Formata para o padr„o do banco
     const cpfFormatado = cpfLimpo.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
     const telefoneFormatado = telefoneLimpo.replace(/(\d{2})(\d{4,5})(\d{4})/, '($1) $2-$3');
 
-    const query = `
-      INSERT INTO clientes (nome, cpf, telefone, email)
-      VALUES (?, ?, ?, ?)
-    `;
-    
-    db.run(query, [nome, cpfFormatado, telefoneFormatado, email], function (err) {
-      if (err) {
-        if (err.message.includes('UNIQUE constraint failed')) {
-          return reject(new Error("CPF ou e-mail j√° cadastrado."));
-        }
-        return reject(new Error("Erro ao salvar no banco de dados"));
+    try {
+      // ? MUDAN«A: Usando $1, $2... e RETURNING *
+      const query = `
+        INSERT INTO clientes (nome, cpf, telefone, email)
+        VALUES ($1, $2, $3, $4)
+        RETURNING *
+      `;
+      
+      // ? MUDAN«A: await + db.query (n„o db.run)
+      const result = await db.query(query, [nome, cpfFormatado, telefoneFormatado, email]);
+      
+      // ? MUDAN«A: Retorna result.rows[0] (n„o this.lastID)
+      return result.rows[0];
+      
+    } catch (error) {
+      // ? MUDAN«A: CÛdigo de erro especÌfico do PostgreSQL
+      if (error.code === '23505') { // ViolaÁ„o de unique constraint
+        throw new Error("CPF ou e-mail j· cadastrado.");
       }
-      resolve({ id: this.lastID, nome, cpf: cpfFormatado, telefone: telefoneFormatado, email });
-    });
-  });
-},
-
-  // Buscar cliente por CPF
-  findByCpf: (cpf) => {
-    return new Promise((resolve, reject) => {
-      db.get("SELECT * FROM clientes WHERE cpf = ?", [cpf], (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
+      throw new Error("Erro ao salvar no banco de dados: " + error.message);
+    }
   },
 
-  // Buscar cliente por ID
-  findById: (id) => {
-    return new Promise((resolve, reject) => {
-      db.get("SELECT * FROM clientes WHERE id = ?", [id], (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
+  // Buscar cliente por CPF (ATUALIZADO)
+  findByCpf: async (cpf) => {
+    try {
+      // ? MUDAN«A: $1 em vez de ?
+      const query = "SELECT * FROM clientes WHERE cpf = $1";
+      const result = await db.query(query, [cpf]);
+      return result.rows[0]; // ? Retorna a primeira linha ou null
+    } catch (error) {
+      console.error('Erro ao buscar cliente por CPF:', error);
+      throw error;
+    }
   },
 
-  deleteByEmail: (email) => {
-  return new Promise((resolve, reject) => {
-    db.run("DELETE FROM clientes WHERE email = ?", [email], function (err) {
-      if (err) reject(err);
-      else resolve({ deleted: this.changes });
-    });
-  });
-},
-  
-  // Buscar cliente por email
-  findByEmail: (email) => {
-    return new Promise((resolve, reject) => {
-      db.get("SELECT * FROM clientes WHERE email = ?", [email], (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
+  // Buscar cliente por ID (ATUALIZADO)
+  findById: async (id) => {
+    try {
+      // ? MUDAN«A: $1 em vez de ?
+      const query = "SELECT * FROM clientes WHERE id = $1";
+      const result = await db.query(query, [id]);
+      return result.rows[0];
+    } catch (error) {
+      console.error('Erro ao buscar cliente por ID:', error);
+      throw error;
+    }
+  },
+
+  // Buscar cliente por email (ATUALIZADO)
+  findByEmail: async (email) => {
+    try {
+      // ? MUDAN«A: $1 em vez de ?
+      const query = "SELECT * FROM clientes WHERE email = $1";
+      const result = await db.query(query, [email]);
+      return result.rows[0];
+    } catch (error) {
+      console.error('Erro ao buscar cliente por email:', error);
+      throw error;
+    }
+  },
+
+  // Deletar cliente por email (ATUALIZADO)
+  deleteByEmail: async (email) => {
+    try {
+      // ? MUDAN«A: $1 em vez de ?
+      const query = "DELETE FROM clientes WHERE email = $1";
+      const result = await db.query(query, [email]);
+      
+      // ? MUDAN«A: result.rowCount em vez de this.changes
+      return { deleted: result.rowCount };
+    } catch (error) {
+      console.error('Erro ao deletar cliente:', error);
+      throw error;
+    }
   }
 };
-
 
 module.exports = Cliente;

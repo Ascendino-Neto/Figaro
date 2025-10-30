@@ -1,18 +1,21 @@
 const db = require('../config/db');
 
 const Servico = {
-  create: (servicoData) => {
+  create: async (servicoData) => {
     const { nome, descricao, local_atendimento, tecnicas_utilizadas, valor, tempo_duracao, prestador_id } = servicoData;
 
-    return new Promise((resolve, reject) => {
+    try {
+      // ✅ MUDANÇA: Usando $1, $2... e RETURNING com JOIN
       const query = `
         INSERT INTO servicos (nome, descricao, local_atendimento, tecnicas_utilizadas, valor, tempo_duracao, prestador_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING *
       `;
       
-      console.log('💾 Salvando serviço:', servicoData);
+      console.log('💾 Salvando serviço no PostgreSQL:', servicoData);
       
-      db.run(query, [
+      // ✅ MUDANÇA: await + db.query
+      const result = await db.query(query, [
         nome,
         descricao,
         local_atendimento,
@@ -20,55 +23,56 @@ const Servico = {
         valor,
         tempo_duracao,
         prestador_id
-      ], function (err) {
-        if (err) {
-          console.error('❌ Erro no SQL:', err.message);
-          return reject(new Error("Erro ao salvar serviço no banco de dados"));
-        }
-        
-        // Busca o serviço criado com informações completas
-        const selectQuery = `
-          SELECT s.*, p.nome as prestador_nome 
-          FROM servicos s
-          LEFT JOIN prestadores p ON s.prestador_id = p.id
-          WHERE s.id = ?
-        `;
-        
-        db.get(selectQuery, [this.lastID], (err, row) => {
-          if (err) {
-            console.error('❌ Erro ao buscar serviço criado:', err.message);
-            // Ainda assim retorna sucesso com dados básicos
-            return resolve({ 
-              id: this.lastID, 
-              ...servicoData,
-              criado_em: new Date().toISOString()
-            });
-          }
-          resolve(row);
-        });
-      });
-    });
+      ]);
+      
+      const servicoInserido = result.rows[0];
+      
+      // ✅ MUDANÇA: Busca informações completas em uma query separada
+      const selectQuery = `
+        SELECT s.*, p.nome as prestador_nome 
+        FROM servicos s
+        LEFT JOIN prestadores p ON s.prestador_id = p.id
+        WHERE s.id = $1
+      `;
+      
+      const completeResult = await db.query(selectQuery, [servicoInserido.id]);
+      
+      if (completeResult.rows[0]) {
+        console.log('✅ Serviço criado com ID:', servicoInserido.id);
+        return completeResult.rows[0];
+      } else {
+        // Fallback: retorna o serviço inserido mesmo sem o join
+        console.log('⚠️ Serviço criado, mas erro ao buscar dados completos');
+        return servicoInserido;
+      }
+      
+    } catch (error) {
+      console.error('❌ Erro ao criar serviço:', error.message);
+      throw new Error("Erro ao salvar serviço no banco de dados: " + error.message);
+    }
   },
 
-  findByPrestadorId: (prestador_id) => {
-    return new Promise((resolve, reject) => {
+  findByPrestadorId: async (prestador_id) => {
+    try {
       const query = `
         SELECT s.*, p.nome as prestador_nome 
         FROM servicos s
         LEFT JOIN prestadores p ON s.prestador_id = p.id
-        WHERE s.prestador_id = ? 
+        WHERE s.prestador_id = $1 
         ORDER BY s.criado_em DESC
       `;
       
-      db.all(query, [prestador_id], (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
-      });
-    });
+      // ✅ MUDANÇA: db.query + async/await
+      const result = await db.query(query, [prestador_id]);
+      return result.rows;
+    } catch (error) {
+      console.error('❌ Erro ao buscar serviços do prestador:', error);
+      throw error;
+    }
   },
 
-  findAll: () => {
-    return new Promise((resolve, reject) => {
+  findAll: async () => {
+    try {
       const query = `
         SELECT s.*, p.nome as prestador_nome 
         FROM servicos s
@@ -76,41 +80,44 @@ const Servico = {
         ORDER BY s.criado_em DESC
       `;
       
-      db.all(query, [], (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
-      });
-    });
+      const result = await db.query(query);
+      return result.rows;
+    } catch (error) {
+      console.error('❌ Erro ao buscar todos os serviços:', error);
+      throw error;
+    }
   },
 
-  // ✅ NOVO: Buscar serviço por ID
-  findById: (id) => {
-    return new Promise((resolve, reject) => {
+  // Buscar serviço por ID
+  findById: async (id) => {
+    try {
       const query = `
         SELECT s.*, p.nome as prestador_nome 
         FROM servicos s
         LEFT JOIN prestadores p ON s.prestador_id = p.id
-        WHERE s.id = ?
+        WHERE s.id = $1
       `;
       
-      db.get(query, [id], (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
+      const result = await db.query(query, [id]);
+      return result.rows[0];
+    } catch (error) {
+      console.error('❌ Erro ao buscar serviço por ID:', error);
+      throw error;
+    }
   },
 
-  // ✅ NOVO: Atualizar serviço
-  update: (id, prestador_id, servicoData) => {
+  // Atualizar serviço
+  update: async (id, prestador_id, servicoData) => {
     const { nome, descricao, local_atendimento, tecnicas_utilizadas, valor, tempo_duracao } = servicoData;
 
-    return new Promise((resolve, reject) => {
+    try {
       const query = `
         UPDATE servicos 
-        SET nome = ?, descricao = ?, local_atendimento = ?, 
-            tecnicas_utilizadas = ?, valor = ?, tempo_duracao = ?,
+        SET nome = $1, descricao = $2, local_atendimento = $3, 
+            tecnicas_utilizadas = $4, valor = $5, tempo_duracao = $6,
             atualizado_em = CURRENT_TIMESTAMP
-        WHERE id = ? AND prestador_id = ?
+        WHERE id = $7 AND prestador_id = $8
+        RETURNING *
       `;
       
       const params = [
@@ -124,86 +131,179 @@ const Servico = {
         prestador_id
       ];
 
-      console.log('💾 Atualizando serviço:', { id, prestador_id, ...servicoData });
+      console.log('💾 Atualizando serviço no PostgreSQL:', { id, prestador_id, ...servicoData });
 
-      db.run(query, params, function (err) {
-        if (err) {
-          console.error('❌ Erro ao atualizar serviço:', err.message);
-          return reject(new Error("Erro ao atualizar serviço no banco de dados"));
-        }
+      const result = await db.query(query, params);
 
-        if (this.changes === 0) {
-          return reject(new Error("Serviço não encontrado ou você não tem permissão para editá-lo"));
-        }
+      // ✅ MUDANÇA: result.rowCount em vez de this.changes
+      if (result.rowCount === 0) {
+        throw new Error("Serviço não encontrado ou você não tem permissão para editá-lo");
+      }
 
-        // Busca o serviço atualizado
-        const selectQuery = `
-          SELECT s.*, p.nome as prestador_nome 
-          FROM servicos s
-          LEFT JOIN prestadores p ON s.prestador_id = p.id
-          WHERE s.id = ?
-        `;
-        
-        db.get(selectQuery, [id], (err, row) => {
-          if (err) {
-            console.error('❌ Erro ao buscar serviço atualizado:', err.message);
-            return reject(new Error("Serviço atualizado, mas erro ao buscar dados atualizados"));
-          }
-          resolve(row);
-        });
-      });
-    });
-  },
-
-  delete: (id, prestador_id) => {
-    return new Promise((resolve, reject) => {
-      const query = `
-        DELETE FROM servicos 
-        WHERE id = ? AND prestador_id = ?
+      // Busca o serviço atualizado com informações completas
+      const selectQuery = `
+        SELECT s.*, p.nome as prestador_nome 
+        FROM servicos s
+        LEFT JOIN prestadores p ON s.prestador_id = p.id
+        WHERE s.id = $1
       `;
       
-      db.run(query, [id, prestador_id], function (err) {
-        if (err) reject(err);
-        else resolve({ deleted: this.changes });
-      });
-    });
+      const completeResult = await db.query(selectQuery, [id]);
+      
+      if (completeResult.rows[0]) {
+        console.log('✅ Serviço atualizado com sucesso');
+        return completeResult.rows[0];
+      } else {
+        throw new Error("Serviço atualizado, mas erro ao buscar dados atualizados");
+      }
+      
+    } catch (error) {
+      console.error('❌ Erro ao atualizar serviço:', error.message);
+      throw error;
+    }
   },
 
-  // ✅ NOVO: Buscar apenas serviços ativos
-  findAtivos: () => {
-    return new Promise((resolve, reject) => {
+  delete: async (id, prestador_id) => {
+    try {
+      const query = `
+        DELETE FROM servicos 
+        WHERE id = $1 AND prestador_id = $2
+      `;
+      
+      const result = await db.query(query, [id, prestador_id]);
+      
+      // ✅ MUDANÇA: result.rowCount em vez de this.changes
+      return { deleted: result.rowCount };
+    } catch (error) {
+      console.error('❌ Erro ao excluir serviço:', error);
+      throw error;
+    }
+  },
+
+  // Buscar apenas serviços ativos
+  findAtivos: async () => {
+    try {
       const query = `
         SELECT s.*, p.nome as prestador_nome 
         FROM servicos s
         LEFT JOIN prestadores p ON s.prestador_id = p.id
-        WHERE s.ativo = 1
+        WHERE s.ativo = true
         ORDER BY s.criado_em DESC
       `;
       
-      db.all(query, [], (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
-      });
-    });
+      const result = await db.query(query);
+      return result.rows;
+    } catch (error) {
+      console.error('❌ Erro ao buscar serviços ativos:', error);
+      throw error;
+    }
   },
 
-  // ✅ NOVO: Ativar/Desativar serviço
-  toggleAtivo: (id, prestador_id, ativo) => {
-    return new Promise((resolve, reject) => {
+  // Ativar/Desativar serviço
+  toggleAtivo: async (id, prestador_id, ativo) => {
+    try {
       const query = `
         UPDATE servicos 
-        SET ativo = ?, atualizado_em = CURRENT_TIMESTAMP
-        WHERE id = ? AND prestador_id = ?
+        SET ativo = $1, atualizado_em = CURRENT_TIMESTAMP
+        WHERE id = $2 AND prestador_id = $3
+        RETURNING *
       `;
       
-      db.run(query, [ativo ? 1 : 0, id, prestador_id], function (err) {
-        if (err) reject(err);
-        else resolve({ 
-          updated: this.changes,
-          message: `Serviço ${ativo ? 'ativado' : 'desativado'} com sucesso`
-        });
-      });
-    });
+      const result = await db.query(query, [ativo, id, prestador_id]);
+      
+      return { 
+        updated: result.rowCount,
+        message: `Serviço ${ativo ? 'ativado' : 'desativado'} com sucesso`,
+        servico: result.rows[0]
+      };
+    } catch (error) {
+      console.error('❌ Erro ao alterar status do serviço:', error);
+      throw error;
+    }
+  },
+
+  // ✅ MÉTODOS ADICIONAIS (úteis para o sistema)
+  
+  // Buscar serviços por nome (para busca)
+  findByNome: async (nome) => {
+    try {
+      const query = `
+        SELECT s.*, p.nome as prestador_nome 
+        FROM servicos s
+        LEFT JOIN prestadores p ON s.prestador_id = p.id
+        WHERE s.nome ILIKE $1 AND s.ativo = true
+        ORDER BY s.nome
+      `;
+      
+      const result = await db.query(query, [`%${nome}%`]);
+      return result.rows;
+    } catch (error) {
+      console.error('❌ Erro ao buscar serviços por nome:', error);
+      throw error;
+    }
+  },
+
+  // Buscar serviços com filtros
+  findWithFilters: async (filters = {}) => {
+    try {
+      let whereConditions = ['s.ativo = true'];
+      let params = [];
+      let paramCount = 0;
+
+      if (filters.prestador_id) {
+        paramCount++;
+        whereConditions.push(`s.prestador_id = $${paramCount}`);
+        params.push(filters.prestador_id);
+      }
+
+      if (filters.local_atendimento) {
+        paramCount++;
+        whereConditions.push(`s.local_atendimento ILIKE $${paramCount}`);
+        params.push(`%${filters.local_atendimento}%`);
+      }
+
+      if (filters.valor_max) {
+        paramCount++;
+        whereConditions.push(`s.valor <= $${paramCount}`);
+        params.push(filters.valor_max);
+      }
+
+      const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+      const query = `
+        SELECT s.*, p.nome as prestador_nome 
+        FROM servicos s
+        LEFT JOIN prestadores p ON s.prestador_id = p.id
+        ${whereClause}
+        ORDER BY s.criado_em DESC
+      `;
+
+      const result = await db.query(query, params);
+      return result.rows;
+    } catch (error) {
+      console.error('❌ Erro ao buscar serviços com filtros:', error);
+      throw error;
+    }
+  },
+
+  // Contar serviços por prestador
+  countByPrestador: async (prestador_id) => {
+    try {
+      const query = `
+        SELECT 
+          COUNT(*) as total,
+          COUNT(CASE WHEN ativo = true THEN 1 END) as ativos,
+          COUNT(CASE WHEN ativo = false THEN 1 END) as inativos
+        FROM servicos 
+        WHERE prestador_id = $1
+      `;
+      
+      const result = await db.query(query, [prestador_id]);
+      return result.rows[0];
+    } catch (error) {
+      console.error('❌ Erro ao contar serviços:', error);
+      throw error;
+    }
   }
 };
 
