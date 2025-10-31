@@ -13,6 +13,7 @@ const prestadorLoginRoutes = require('./routes/prestadorLoginRoutes');
 const authRoutes = require('./routes/authRoutes');
 const servicoRoutes = require('./routes/servicoRoutes');
 const agendamentoRoutes = require('./routes/agendamentoRoutes');
+const encryptionRoutes = require('./routes/encryptionRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -29,6 +30,7 @@ app.use('/api', prestadorLoginRoutes);
 app.use('/api', authRoutes);
 app.use('/api', servicoRoutes);
 app.use('/api', agendamentoRoutes);
+app.use('/api', encryptionRoutes);
 
 // Rota de teste
 app.get('/', (req, res) => {

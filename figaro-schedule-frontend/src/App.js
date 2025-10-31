@@ -14,6 +14,7 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 import { ApiTest } from './services/api-test';
 import './App.css';
 import SelecaoHorario from './pages/SelecaoHorario';
+import EncryptionDashboard from './components/security/EncryptionDashboard';
 
 function App() {
   return (
@@ -56,6 +57,8 @@ function App() {
                 </ProtectedRoute>
               } 
             />
+
+            <Route path="/encryption-metrics" element={<EncryptionDashboard />} />
             
             <Route 
               path="/prestador/dashboard" 
