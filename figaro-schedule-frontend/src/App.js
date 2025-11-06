@@ -15,6 +15,9 @@ import { ApiTest } from './services/api-test';
 import './App.css';
 import SelecaoHorario from './pages/SelecaoHorario';
 import EncryptionDashboard from './components/security/EncryptionDashboard';
+import ReagendamentoSolicitacao from './pages/ReagendamentoSolicitacao';
+import ReagendamentoConfirmacao from './pages/ReagendamentoConfirmacao';
+import PrestadorReagendamentos from './pages/PrestadorReagendamentos';
 
 function App() {
   return (
@@ -84,6 +87,33 @@ function App() {
               element={
                 <ProtectedRoute requiredType="cliente">
                   <AgendamentoConfirmacao />
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/reagendamento/solicitacao" 
+              element={
+                <ProtectedRoute requiredType="cliente">
+                  <ReagendamentoSolicitacao />
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/reagendamento/confirmacao" 
+              element={
+                <ProtectedRoute requiredType="cliente">
+                  <ReagendamentoConfirmacao />
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/prestador/reagendamentos" 
+              element={
+                <ProtectedRoute requiredType="prestador">
+                  <PrestadorReagendamentos />
                 </ProtectedRoute>
               } 
             />
