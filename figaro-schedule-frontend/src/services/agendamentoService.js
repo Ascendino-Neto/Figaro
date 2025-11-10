@@ -1,4 +1,5 @@
 import api from './api';
+import { authService } from './authService';
 
 export const agendamentoService = {
   // Criar novo agendamento
@@ -101,20 +102,50 @@ export const agendamentoService = {
 
   // Buscar agendamentos por cliente
   async getAgendamentosByCliente(cliente_id) {
-    try {
-      const response = await api.get(`/agendamentos/cliente/${cliente_id}`);
-      
-      if (response.data.success) {
-        return response.data;
-      } else {
-        throw new Error(response.data.error);
-      }
-      
-    } catch (error) {
-      console.error('❌ Erro ao buscar agendamentos do cliente:', error.message);
-      throw new Error(error.response?.data?.error || 'Erro ao buscar agendamentos');
+  try {
+    // ✅ VALIDAÇÃO: Garantir que está buscando apenas os próprios agendamentos
+    const user = authService.getCurrentUser();
+    
+    if (!user || user.type !== 'cliente' || user.id != cliente_id) {
+      throw new Error('Acesso não autorizado');
     }
-  },
+
+    const response = await api.get(`/agendamentos/cliente/${cliente_id}`);
+   
+    if (response.data.success) {
+      return response.data;
+    } else {
+      throw new Error(response.data.error);
+    }
+   
+  } catch (error) {
+    console.error('❌ Erro ao buscar agendamentos do cliente:', error.message);
+    throw new Error(error.response?.data?.error || 'Erro ao buscar agendamentos');
+  }
+},
+
+async getMeusAgendamentos() {
+  try {
+    const user = authService.getCurrentUser();
+    
+    if (!user || user.type !== 'cliente') {
+      throw new Error('Acesso restrito para clientes');
+    }
+
+    // ✅ USAR A NOVA ROTA que busca pelo ID do usuário logado
+    const response = await api.get(`/agendamentos/cliente/${user.id}`);
+   
+    if (response.data.success) {
+      return response.data;
+    } else {
+      throw new Error(response.data.error);
+    }
+   
+  } catch (error) {
+    console.error('❌ Erro ao buscar meus agendamentos:', error.message);
+    throw new Error(error.response?.data?.error || 'Erro ao buscar agendamentos');
+  }
+},
 
   // Buscar agendamentos por prestador
   async getAgendamentosByPrestador(prestador_id) {
@@ -188,20 +219,19 @@ export const agendamentoService = {
     }
   },
 
-  // Cancelar agendamento
-  async cancelarAgendamento(id, cliente_id) {
-    try {
-      const response = await api.delete(`/agendamentos/${id}/cancelar`, {
-        data: { cliente_id }
-      });
-      
-      return response.data;
-      
-    } catch (error) {
-      console.error('❌ Erro ao cancelar agendamento:', error.message);
-      throw new Error(error.response?.data?.error || 'Erro ao cancelar agendamento');
-    }
-  },
+async cancelarAgendamento(id, cliente_id) {
+  try {
+    const response = await api.put(`/agendamentos/${id}/cancelar`, {
+      cliente_id
+    });
+   
+    return response.data;
+   
+  } catch (error) {
+    console.error('❌ Erro ao cancelar agendamento:', error.message);
+    throw new Error(error.response?.data?.error || 'Erro ao cancelar agendamento');
+  }
+},
 
   // Listar todos os agendamentos (para admin)
   async getAllAgendamentos() {

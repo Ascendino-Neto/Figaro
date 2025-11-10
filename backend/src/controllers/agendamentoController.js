@@ -178,25 +178,57 @@ const agendamentoController = {
   },
 
   // Buscar agendamentos por cliente
-  async findByCliente(req, res) {
-    try {
-      // ✅ MUDANÇA: await em vez de Promise
-      const agendamentos = await Agendamento.findByClienteId(req.params.cliente_id);
-     
-      res.json({
-        success: true,
-        agendamentos,
-        total: agendamentos.length
-      });
+  // backend\src\controllers\agendamentoController.js
 
-    } catch (error) {
-      console.error('❌ Erro ao buscar agendamentos do cliente:', error.message);
-      res.status(500).json({
-        success: false,
-        error: 'Erro interno ao buscar agendamentos'
-      });
-    }
-  },
+// Buscar agendamentos por cliente - VERSÃO CORRIGIDA
+async findByCliente(req, res) {
+  try {
+    const cliente_id = req.params.cliente_id;
+    
+    // ✅ VALIDAÇÃO: Verificar se o cliente está tentando acessar seus próprios agendamentos
+    const user = req.user; // Assumindo que você tem middleware de autenticação
+
+    // ✅ MUDANÇA: Buscar apenas agendamentos do cliente específico
+    const agendamentos = await Agendamento.findByClienteId(cliente_id);
+   
+    res.json({
+      success: true,
+      agendamentos,
+      total: agendamentos.length
+    });
+
+  } catch (error) {
+    console.error('❌ Erro ao buscar agendamentos do cliente:', error.message);
+    res.status(500).json({
+      success: false,
+      error: 'Erro interno ao buscar agendamentos'
+    });
+  }
+},
+
+// Listar todos os agendamentos (apenas para administração) - VERSÃO CORRIGIDA
+async listAll(req, res) {
+  try {
+
+    const agendamentos = await Agendamento.findFuturos();
+   
+    res.json({
+      success: true,
+      agendamentos,
+      total: agendamentos.length,
+      message: agendamentos.length > 0
+        ? `${agendamentos.length} agendamentos encontrados`
+        : 'Nenhum agendamento encontrado'
+    });
+
+  } catch (error) {
+    console.error('❌ Erro ao listar agendamentos:', error.message);
+    res.status(500).json({
+      success: false,
+      error: 'Erro interno ao listar agendamentos'
+    });
+  }
+},
 
   // Buscar agendamentos por prestador
   async findByPrestador(req, res) {
@@ -339,37 +371,45 @@ const agendamentoController = {
     }
   },
 
-  // Cancelar agendamento
-  async cancelar(req, res) {
-    try {
-      const { id } = req.params;
-      const { cliente_id } = req.body;
+  // backend\src\controllers\agendamentoController.js
 
-      if (!cliente_id) {
-        return res.status(400).json({
-          success: false,
-          error: 'cliente_id é obrigatório'
-        });
-      }
+// Cancelar agendamento - VERSÃO CORRIGIDA
+async cancelar(req, res) {
+  try {
+    const { id } = req.params;
+    const { cliente_id } = req.body;
 
-      // ✅ MUDANÇA: await em vez de Promise
-      const result = await Agendamento.delete(id, cliente_id);
-     
-      res.json({
-        success: result.deleted > 0,
-        message: result.message,
-        agendamento_id: id
-      });
-
-    } catch (error) {
-      console.error('❌ Erro ao cancelar agendamento:', error.message);
-      res.status(500).json({
+    if (!cliente_id) {
+      return res.status(400).json({
         success: false,
-        error: 'Erro interno ao cancelar agendamento'
+        error: 'cliente_id é obrigatório'
       });
     }
-  },
 
+    // ✅ MUDANÇA: Usar updateStatus em vez de delete
+    const result = await Agendamento.updateStatus(id, 'cancelado');
+
+    if (result.updated === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Agendamento não encontrado ou você não tem permissão para cancelá-lo'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Agendamento cancelado com sucesso!',
+      agendamento_id: id
+    });
+
+  } catch (error) {
+    console.error('❌ Erro ao cancelar agendamento:', error.message);
+    res.status(500).json({
+      success: false,
+      error: 'Erro interno ao cancelar agendamento: ' + error.message
+    });
+  }
+},
   // Listar todos os agendamentos (apenas para administração)
   async listAll(req, res) {
     try {

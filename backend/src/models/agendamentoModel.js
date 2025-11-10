@@ -262,27 +262,27 @@ const Agendamento = {
 
   // Buscar agendamentos por cliente
   findByClienteId: async (cliente_id) => {
-    try {
-      const query = `
-        SELECT 
-          a.*,
-          p.nome as prestador_nome,
-          s.nome as servico_nome,
-          s.descricao as servico_descricao
-        FROM agendamentos a
-        LEFT JOIN prestadores p ON a.prestador_id = p.id
-        LEFT JOIN servicos s ON a.servico_id = s.id
-        WHERE a.cliente_id = $1
-        ORDER BY a.data_agendamento DESC
-      `;
+  try {
+    const query = `
+      SELECT
+        a.*,
+        p.nome as prestador_nome,
+        s.nome as servico_nome,
+        s.descricao as servico_descricao
+      FROM agendamentos a
+      LEFT JOIN prestadores p ON a.prestador_id = p.id
+      LEFT JOIN servicos s ON a.servico_id = s.id
+      WHERE a.cliente_id = $1
+      ORDER BY a.data_agendamento DESC
+    `;
 
-      const result = await db.query(query, [cliente_id]);
-      return result.rows;
-    } catch (error) {
-      console.error('❌ Erro ao buscar agendamentos do cliente:', error);
-      throw error;
-    }
-  },
+    const result = await db.query(query, [cliente_id]);
+    return result.rows;
+  } catch (error) {
+    console.error('❌ Erro ao buscar agendamentos do cliente:', error);
+    throw error;
+  }
+},
 
   // Buscar agendamentos por prestador
   findByPrestadorId: async (prestador_id) => {
@@ -382,30 +382,6 @@ const Agendamento = {
       return result.rows[0];
     } catch (error) {
       console.error('❌ Erro ao validar serviço:', error);
-      throw error;
-    }
-  },
-
-  // Deletar agendamento
-  delete: async (id, cliente_id) => {
-    try {
-      const query = `
-        DELETE FROM agendamentos 
-        WHERE id = $1 AND cliente_id = $2 AND status = 'agendado'
-      `;
-
-      const result = await db.query(query, [id, cliente_id]);
-      
-      const message = result.rowCount > 0 
-        ? 'Agendamento cancelado' 
-        : 'Agendamento não encontrado ou já confirmado';
-      
-      return { 
-        deleted: result.rowCount,
-        message: message
-      };
-    } catch (error) {
-      console.error('❌ Erro ao deletar agendamento:', error);
       throw error;
     }
   },

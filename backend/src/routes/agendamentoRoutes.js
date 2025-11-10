@@ -50,7 +50,7 @@ router.post('/agendamentos/disponibilidade', agendamentoController.verificarDisp
 // @route   DELETE /api/agendamentos/:id/cancelar
 // @desc    Cancelar agendamento
 // @access  Private (Cliente do agendamento)
-router.delete('/agendamentos/:id/cancelar', agendamentoController.cancelar);
+router.put('/agendamentos/:id/cancelar', agendamentoController.cancelar);
 
 // Rota de health check para agendamentos
 router.get('/agendamentos-health', (req, res) => {

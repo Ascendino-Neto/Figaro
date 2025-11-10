@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authService } from '../services/authService';
 import api, { mockAPI } from '../services/api';
+import { agendamentoService } from '../services/agendamentoService';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -65,37 +66,66 @@ const Dashboard = () => {
   }, []);
 
   const carregarAgendamentos = async () => {
-    try {
-      console.log('🔄 Carregando agendamentos para cliente:', user?.id);
-      
-      const response = await api.get('/agendamentos');
-      console.log('✅ Resposta do endpoint /agendamentos:', response);
+  try {
+    const user = authService.getCurrentUser();
+    console.log('🔄 Carregando agendamentos para usuário:', user);
 
-      let agendamentosArray = [];
+    if (!user) {
+      setError('Usuário não está logado');
+      setLoading(false);
+      return;
+    }
+
+    // ✅ TENTATIVA 1: Usar o método específico para meus agendamentos
+    console.log('🎯 Tentando carregar meus agendamentos...');
+    const response = await agendamentoService.getMeusAgendamentos();
+    console.log('✅ Resposta dos agendamentos:', response);
+
+    let agendamentosArray = [];
+   
+    if (Array.isArray(response.agendamentos)) {
+      agendamentosArray = response.agendamentos;
+    } else if (response.data && Array.isArray(response.data)) {
+      agendamentosArray = response.data;
+    } else if (response.agendamentos && typeof response.agendamentos === 'object') {
+      agendamentosArray = [response.agendamentos];
+    } else {
+      console.warn('⚠️ Formato de resposta inesperado:', response);
+      agendamentosArray = [];
+    }
+   
+    console.log('📊 Agendamentos processados:', agendamentosArray);
+    setAgendamentos(agendamentosArray);
+    setError('');
+    setLoading(false);
+   
+  } catch (error) {
+    console.error('❌ Erro ao carregar agendamentos:', error);
+    
+    // ✅ TENTATIVA 2: Fallback para método alternativo
+    try {
+      console.log('🔄 Tentando método alternativo...');
+      const user = authService.getCurrentUser();
       
-      if (Array.isArray(response.data)) {
-        agendamentosArray = response.data;
-      } else if (response.data && typeof response.data === 'object') {
-        if (response.data.agendamentos && Array.isArray(response.data.agendamentos)) {
-          agendamentosArray = response.data.agendamentos;
-        } else if (response.data.data && Array.isArray(response.data.data)) {
-          agendamentosArray = response.data.data;
-        } else {
-          agendamentosArray = [response.data];
+      if (user && user.type === 'cliente') {
+        // Tentar buscar diretamente pela rota do cliente
+        const response = await api.get(`/agendamentos/cliente/${user.id}`);
+        if (response.data.success) {
+          setAgendamentos(response.data.agendamentos || []);
+          setError('');
+          setLoading(false);
+          return;
         }
       }
-      
-      console.log('📊 Agendamentos processados:', agendamentosArray);
-      setAgendamentos(agendamentosArray);
-      setLoading(false);
-      
-    } catch (error) {
-      console.error('❌ Erro ao carregar agendamentos:', error);
-      setError(`Erro ao carregar agendamentos: ${error.message}`);
-      setAgendamentos([]);
-      setLoading(false);
+    } catch (fallbackError) {
+      console.error('❌ Fallback também falhou:', fallbackError);
     }
-  };
+    
+    setError(`Erro ao carregar agendamentos: ${error.message}`);
+    setAgendamentos([]);
+    setLoading(false);
+  }
+};
 
   const carregarEstatisticasAdmin = async () => {
     try {
@@ -113,62 +143,60 @@ const Dashboard = () => {
     }
   };
 
-  const handleCancelarAgendamento = async (agendamentoId) => {
-    if (!agendamentoId) {
-      alert('ID do agendamento inválido');
-      return;
-    }
+  // figaro-schedule-frontend\src\pages\Dashboard.js
 
-    if (window.confirm('Tem certeza que deseja cancelar este agendamento?')) {
-      try {
-        console.log('🗑️ Tentando cancelar agendamento:', agendamentoId);
-        
-        let response;
-        
-        try {
-          // Tentativa 1: Endpoint padrão
-          response = await api.delete(`/agendamentos/${agendamentoId}`);
-          console.log('✅ Cancelamento bem-sucedido com endpoint padrão');
-        } catch (error1) {
-          console.log('❌ Endpoint padrão falhou, usando mock...');
-          
-          // ✅ USA MOCK COMO FALLBACK
-          response = await mockAPI.cancelarAgendamento(agendamentoId);
-          console.log('✅ Cancelamento bem-sucedido com mock');
-        }
+const handleCancelarAgendamento = async (agendamentoId) => {
+  if (!agendamentoId) {
+    alert('ID do agendamento inválido');
+    return;
+  }
 
-        console.log('✅ Resposta do cancelamento:', response);
-        
-        // ✅ CORREÇÃO: Atualiza o status localmente de forma mais robusta
-        setAgendamentos(prevAgendamentos => 
-          prevAgendamentos.map(ag => {
-            const agId = ag.id || ag._id;
-            if (agId == agendamentoId) {
-              console.log('🔄 Atualizando agendamento local:', agId);
-              return { 
-                ...ag, 
-                status: 'cancelado'
-              };
-            }
-            return ag;
-          })
-        );
-        
-        alert('Agendamento cancelado com sucesso!');
-      } catch (error) {
-        console.error('❌ Erro ao cancelar agendamento:', error);
-        
-        let errorMessage = 'Erro ao cancelar agendamento. ';
-        if (error.response?.status === 404) {
-          errorMessage += 'Rota não encontrada no servidor.';
-        } else {
-          errorMessage += error.message;
-        }
-        
-        alert(errorMessage);
+  if (window.confirm('Tem certeza que deseja cancelar este agendamento?')) {
+    try {
+      console.log('🗑️ Tentando cancelar agendamento:', agendamentoId);
+     
+      const user = authService.getCurrentUser();
+      
+      // ✅ MUDANÇA: Usar o método correto com cliente_id
+      const response = await agendamentoService.cancelarAgendamento(
+        agendamentoId, 
+        user.id // cliente_id é necessário
+      );
+
+      console.log('✅ Cancelamento bem-sucedido:', response);
+     
+      // ✅ CORREÇÃO: Atualiza o status localmente
+      setAgendamentos(prevAgendamentos =>
+        prevAgendamentos.map(ag => {
+          const agId = ag.id || ag._id;
+          if (agId == agendamentoId) {
+            console.log('🔄 Atualizando agendamento local:', agId);
+            return {
+              ...ag,
+              status: 'cancelado'
+            };
+          }
+          return ag;
+        })
+      );
+     
+      alert('Agendamento cancelado com sucesso!');
+    } catch (error) {
+      console.error('❌ Erro ao cancelar agendamento:', error);
+     
+      let errorMessage = 'Erro ao cancelar agendamento. ';
+      if (error.response?.status === 404) {
+        errorMessage += 'Agendamento não encontrado.';
+      } else if (error.message.includes('cliente_id')) {
+        errorMessage += 'Erro de autenticação.';
+      } else {
+        errorMessage += error.message;
       }
+     
+      alert(errorMessage);
     }
-  };
+  }
+};
 
   const handleReagendar = async (agendamento) => {
     if (!agendamento.id) {
