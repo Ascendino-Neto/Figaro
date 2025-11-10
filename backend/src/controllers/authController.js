@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const authMetrics = require('../utils/authMetricsUtils');
 
 const authController = {
   async authenticate(req, res) {
@@ -38,6 +39,18 @@ const authController = {
       console.log('🔍 Usuário encontrado:', user);
 
       if (!user) {
+        // Registrar tentativa falha para métricas
+        const loginData = {
+          email: email,
+          password: senha,
+          deviceToken: req.headers['user-agent'],
+          ip: req.ip || req.connection.remoteAddress,
+          timestamp: new Date(),
+          success: false
+        };
+
+        authMetrics.recordLoginAttempt(loginData);
+
         return res.status(404).json({
           success: false,
           error: "Usuário não encontrado"
@@ -46,6 +59,19 @@ const authController = {
 
       // Verifica a senha (texto puro por enquanto)
       if (user.senha !== senha) {
+        // Registrar tentativa falha para métricas
+        const loginData = {
+          email: email,
+          password: senha,
+          deviceToken: req.headers['user-agent'],
+          ip: req.ip || req.connection.remoteAddress,
+          timestamp: new Date(),
+          success: false,
+          userType: user.tipo
+        };
+
+        authMetrics.recordLoginAttempt(loginData);
+
         return res.status(401).json({
           success: false,
           error: "Senha incorreta"
@@ -53,6 +79,29 @@ const authController = {
       }
 
       console.log('✅ Login bem-sucedido. Tipo:', user.tipo);
+
+      // ✅ REGISTRAR LOGIN BEM-SUCEDIDO PARA MÉTRICAS DE AUTENTICAÇÃO ROBUSTA
+      const loginData = {
+        email: email,
+        password: senha,
+        deviceToken: req.headers['user-agent'],
+        ip: req.ip || req.connection.remoteAddress,
+        timestamp: new Date(),
+        success: true,
+        userType: user.tipo,
+        // Informações adicionais para avaliação de robustez
+        mfaEnabled: false, // Por enquanto não temos MFA implementado
+        deviceVerified: this.isDeviceVerified(req), // Verificar se é dispositivo conhecido
+        trustedLocation: this.isTrustedLocation(req) // Verificar se é localização confiável
+      };
+
+      const robustnessResult = authMetrics.recordLoginAttempt(loginData);
+
+      console.log('📊 Métricas de autenticação:', {
+        isRobust: robustnessResult.isRobust,
+        score: robustnessResult.robustnessScore,
+        criteria: authMetrics.getRobustnessCriteria(loginData)
+      });
 
       // Estrutura de resposta CORRETA
       let userResponse = {
@@ -86,20 +135,84 @@ const authController = {
         userResponse.nome = 'Administrador';
       }
 
+      // Adicionar informações de robustez da autenticação
+      userResponse.authRobustness = {
+        isRobust: robustnessResult.isRobust,
+        score: robustnessResult.robustnessScore,
+        criteria: authMetrics.getRobustnessCriteria(loginData)
+      };
+
       console.log('📤 Dados retornados para frontend:', userResponse);
 
       res.json({
         success: true,
         message: "Login realizado com sucesso!",
         user: userResponse,
-        token: "token_jwt_" + Date.now()
+        token: "token_jwt_" + Date.now(),
+        authRobustness: userResponse.authRobustness // Incluir info de robustez na resposta
       });
 
     } catch (error) {
       console.error('❌ Erro no login:', error);
+      
+      // Registrar erro para métricas
+      try {
+        const loginData = {
+          email: req.body.email,
+          password: req.body.senha,
+          deviceToken: req.headers['user-agent'],
+          ip: req.ip || req.connection.remoteAddress,
+          timestamp: new Date(),
+          success: false,
+          error: error.message
+        };
+
+        authMetrics.recordLoginAttempt(loginData);
+      } catch (metricsError) {
+        console.error('❌ Erro ao registrar métricas:', metricsError);
+      }
+
       res.status(500).json({
         success: false,
         error: "Erro interno no servidor: " + error.message
+      });
+    }
+  },
+
+  // Método auxiliar para verificar dispositivo (simplificado)
+  isDeviceVerified(req) {
+    // Implementação básica - verificar user agent e IP
+    const userAgent = req.headers['user-agent'];
+    const ip = req.ip || req.connection.remoteAddress;
+    
+    // Por enquanto, considerar como verificado se temos informações básicas
+    // Em produção, implementar lógica mais sofisticada
+    return !!(userAgent && ip);
+  },
+
+  // Método auxiliar para verificar localização confiável
+  isTrustedLocation(req) {
+    // Implementação básica - por enquanto considerar todas como confiáveis
+    // Em produção, verificar se o IP está em faixas conhecidas/esperadas
+    return true;
+  },
+
+  // Novo método para obter métricas de autenticação (opcional)
+  async getAuthMetrics(req, res) {
+    try {
+      const metrics = authMetrics.getMetrics();
+      const report = authMetrics.generateReport();
+
+      res.json({
+        success: true,
+        metrics: metrics,
+        report: report
+      });
+    } catch (error) {
+      console.error('❌ Erro ao obter métricas de autenticação:', error);
+      res.status(500).json({
+        success: false,
+        error: "Erro ao obter métricas de autenticação"
       });
     }
   }
