@@ -14,6 +14,7 @@ const authRoutes = require('./routes/authRoutes');
 const servicoRoutes = require('./routes/servicoRoutes');
 const agendamentoRoutes = require('./routes/agendamentoRoutes');
 const encryptionRoutes = require('./routes/encryptionRoutes');
+const authMetricsRoutes = require('./routes/authMetricsRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -147,6 +148,8 @@ app.use((req, res) => {
     }
   });
 });
+
+app.use('/api', authMetricsRoutes);
 
 // Manipulador de erros global
 app.use((error, req, res, next) => {

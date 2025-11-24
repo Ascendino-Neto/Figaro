@@ -1,5 +1,16 @@
 const db = require('../config/db');
 
+// Não importar authMetricsUtils - vamos criar um mock vazio
+const authMetrics = {
+  recordLoginAttempt: (loginData) => {
+    console.log('📊 Mock metrics - login attempt:', loginData.email);
+    return { isRobust: false, robustnessScore: 0 };
+  },
+  getRobustnessCriteria: () => {
+    return {};
+  }
+};
+
 const authController = {
   async authenticate(req, res) {
     try {
@@ -7,7 +18,6 @@ const authController = {
 
       console.log('🔐 Tentativa de login:', email);
 
-      // Validações básicas
       if (!email || !senha) {
         return res.status(400).json({
           success: false,
@@ -35,8 +45,6 @@ const authController = {
 
       const user = await db.get(userQuery, [email]);
 
-      console.log('🔍 Usuário encontrado:', user);
-
       if (!user) {
         return res.status(404).json({
           success: false,
@@ -44,7 +52,6 @@ const authController = {
         });
       }
 
-      // Verifica a senha (texto puro por enquanto)
       if (user.senha !== senha) {
         return res.status(401).json({
           success: false,
@@ -54,39 +61,26 @@ const authController = {
 
       console.log('✅ Login bem-sucedido. Tipo:', user.tipo);
 
-      // Estrutura de resposta CORRETA
+      // Estrutura de resposta
       let userResponse = {
         email: user.email,
         tipo: user.tipo
       };
 
-      // ✅ IDs corretos baseados no tipo
       if (user.tipo === 'cliente') {
-        if (user.cliente_id) {
-          userResponse.id = user.cliente_id;
-          userResponse.nome = user.cliente_nome || user.email;
-          userResponse.cliente_id = user.cliente_id;
-        } else {
-          userResponse.id = user.usuario_id;
-          userResponse.nome = user.email;
-        }
+        userResponse.id = user.cliente_id || user.usuario_id;
+        userResponse.nome = user.cliente_nome || user.email;
+        userResponse.cliente_id = user.cliente_id;
       } 
       else if (user.tipo === 'prestador') {
-        if (user.prestador_id) {
-          userResponse.id = user.prestador_id;
-          userResponse.nome = user.prestador_nome || user.email;
-          userResponse.prestador_id = user.prestador_id;
-        } else {
-          userResponse.id = user.usuario_id;
-          userResponse.nome = user.email;
-        }
+        userResponse.id = user.prestador_id || user.usuario_id;
+        userResponse.nome = user.prestador_nome || user.email;
+        userResponse.prestador_id = user.prestador_id;
       } 
       else if (user.tipo === 'admin') {
         userResponse.id = user.usuario_id;
         userResponse.nome = 'Administrador';
       }
-
-      console.log('📤 Dados retornados para frontend:', userResponse);
 
       res.json({
         success: true,
