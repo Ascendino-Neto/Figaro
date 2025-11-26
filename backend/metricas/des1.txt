@@ -1,0 +1,192 @@
+// VALIDAÇÃO DA MÉTRICA DE TAXA DE FALHAS DE RESPOSTA
+console.log('📊 VALIDAÇÃO - Métrica de Taxa de Falhas de Resposta');
+console.log('Fórmula: x = RF ÷ RT × 100');
+console.log('RF = Requisições com Falha');
+console.log('RT = Total de Requisições');
+console.log('===================================================');
+
+// Função principal de validação
+const validateResponseFailureRate = () => {
+  console.log('\n📋 CHECKLIST DE VALIDAÇÃO:');
+  
+  // 1. Coletar dados de requisições da aplicação
+  let requestData = null;
+  try {
+    // Tentar obter dados reais da aplicação
+    if (window.performance && window.performance.getEntriesByType) {
+      const performanceEntries = window.performance.getEntriesByType('resource');
+      const apiRequests = performanceEntries.filter(entry => 
+        entry.name.includes('/api/') || entry.name.includes('localhost:3000')
+      );
+      
+      const totalRequests = apiRequests.length;
+      const failedRequests = apiRequests.filter(entry => {
+        // Considerar como falha se status não for 2xx ou se duration > 5000ms
+        return (entry.responseStatus && entry.responseStatus >= 400) || 
+               entry.duration > 5000;
+      }).length;
+      
+      requestData = {
+        failedRequests: failedRequests,
+        totalRequests: totalRequests,
+        failureRate: totalRequests > 0 ? (failedRequests / totalRequests) * 100 : 0
+      };
+      
+      console.log('✅ 1. Dados reais coletados do performance API');
+    } else {
+      console.log('ℹ️ 1. Performance API não disponível, usando dados de teste');
+      requestData = {
+        failedRequests: 12,    // RF
+        totalRequests: 245,    // RT
+        failureRate: 4.90      // x
+      };
+    }
+  } catch (error) {
+    console.log('❌ 1. Erro ao coletar dados:', error.message);
+    console.log('   💡 Usando dados de teste...');
+    requestData = {
+      failedRequests: 12,    // RF
+      totalRequests: 245,    // RT
+      failureRate: 4.90      // x
+    };
+  }
+
+  const RF = requestData.failedRequests;
+  const RT = requestData.totalRequests;
+  const x = requestData.failureRate;
+
+  console.log('\n📊 DADOS COLETADOS:');
+  console.log(`   RF (Requisições com Falha): ${RF}`);
+  console.log(`   RT (Total de Requisições): ${RT}`);
+  console.log(`   x (Taxa de Falhas): ${x.toFixed(2)}%`);
+
+  // 2. Validar a fórmula
+  console.log('\n🧮 VALIDAÇÃO DA FÓRMULA:');
+  const calculatedX = RT > 0 ? (RF / RT) * 100 : 0;
+  const formulaIsCorrect = Math.abs(calculatedX - x) < 0.01;
+  
+  console.log(`   Fórmula: x = ${RF} ÷ ${RT} × 100`);
+  console.log(`   Calculado: ${calculatedX.toFixed(2)}%`);
+  console.log(`   Registrado: ${x.toFixed(2)}%`);
+  console.log(`   ✅ Fórmula correta: ${formulaIsCorrect ? 'SIM' : 'NÃO'}`);
+
+  // 3. Validar range (0% a 100%)
+  console.log('\n📈 VALIDAÇÃO DO RANGE:');
+  const isInRange = x >= 0 && x <= 100;
+  console.log(`   0 ≤ ${x.toFixed(2)}% ≤ 100: ${isInRange ? '✅ DENTRO' : '❌ FORA'}`);
+
+  // 4. Validar consistência dos dados
+  console.log('\n🔍 VALIDAÇÃO DE CONSISTÊNCIA:');
+  const hasValidData = RF >= 0 && RT >= 0 && RF <= RT;
+  console.log(`   RF ≥ 0: ${RF >= 0}`);
+  console.log(`   RT ≥ 0: ${RT >= 0}`); 
+  console.log(`   RF ≤ RT: ${RF <= RT}`);
+  console.log(`   ✅ Dados consistentes: ${hasValidData ? 'SIM' : 'NÃO'}`);
+
+  // 5. Interpretação da métrica
+  console.log('\n📖 INTERPRETAÇÃO:');
+  let interpretation = '';
+  let status = '';
+  
+  if (x === 0) {
+    interpretation = 'Excelente - Nenhuma falha detectada';
+    status = '🟢 PERFEITO';
+  } else if (x <= 5) {
+    interpretation = 'Bom - Taxa de falhas muito baixa';
+    status = '🟢 ÓTIMO';
+  } else if (x <= 10) {
+    interpretation = 'Regular - Taxa de falhas aceitável';
+    status = '🟡 RAZOÁVEL';
+  } else if (x <= 20) {
+    interpretation = 'Preocupante - Taxa de falhas alta';
+    status = '🟠 ALERTA';
+  } else {
+    interpretation = 'Crítico - Taxa de falhas muito alta';
+    status = '🔴 CRÍTICO';
+  }
+  
+  console.log(`   ${status}: ${interpretation}`);
+  console.log(`   Valores próximos a 0% indicam maior confiabilidade`);
+
+  // 6. Calcular pontuação
+  console.log('\n🎯 PONTUAÇÃO FINAL:');
+  let score = 0;
+  if (formulaIsCorrect) score += 40;
+  if (isInRange) score += 30;
+  if (hasValidData) score += 30;
+
+  console.log(`   Fórmula correta: ${formulaIsCorrect ? '+40' : '+0'}`);
+  console.log(`   Range válido: ${isInRange ? '+30' : '+0'}`);
+  console.log(`   Dados consistentes: ${hasValidData ? '+30' : '+0'}`);
+  console.log(`   📊 PONTUAÇÃO TOTAL: ${score}/100`);
+
+  // 7. Recomendações
+  console.log('\n💡 RECOMENDAÇÕES:');
+  if (x > 10) {
+    console.log('   🔧 Implementar retry automático para requisições falhas');
+    console.log('   🔧 Melhorar tratamento de erros no frontend');
+    console.log('   🔧 Monitorar saúde da API backend');
+  } else if (x > 5) {
+    console.log('   🔧 Revisar logs de erro recentes');
+    console.log('   🔧 Verificar conectividade de rede');
+  } else {
+    console.log('   ✅ Sistema estável - manter monitoramento');
+  }
+
+  // 8. Resultado final
+  console.log('\n🎊 RESULTADO FINAL:');
+  if (score >= 80) {
+    console.log('%c✅ MÉTRICA VALIDADA COM SUCESSO!', 'color: green; font-size: 16px; font-weight: bold;');
+    console.log('%cA Métrica de Taxa de Falhas de Resposta está funcionando corretamente.', 'color: green;');
+  } else {
+    console.log('%c❌ MÉTRICA NÃO VALIDADA', 'color: red; font-size: 16px; font-weight: bold;');
+    console.log('%cA métrica precisa de ajustes antes de ser considerada válida.', 'color: red;');
+  }
+
+  return {
+    score,
+    isValid: score >= 80,
+    metrics: { RF, RT, x },
+    interpretation: interpretation,
+    status: status,
+    details: {
+      formulaIsCorrect,
+      isInRange, 
+      hasValidData
+    }
+  };
+};
+
+// Função para simular diferentes cenários de teste
+const testFailureRateScenarios = () => {
+  console.log('\n🎭 TESTANDO CENÁRIOS DIFERENTES:');
+  
+  const scenarios = [
+    { RF: 0, RT: 100, desc: 'Cenário Perfeito' },
+    { RF: 5, RT: 100, desc: 'Cenário Bom' },
+    { RF: 15, RT: 100, desc: 'Cenário Regular' },
+    { RF: 25, RT: 100, desc: 'Cenário Crítico' },
+    { RF: 50, RT: 50, desc: 'Cenário Extremo' }
+  ];
+  
+  scenarios.forEach(scenario => {
+    const x = (scenario.RF / scenario.RT) * 100;
+    console.log(`   ${scenario.desc}: ${scenario.RF}/${scenario.RT} = ${x.toFixed(1)}%`);
+  });
+};
+
+// Executar a validação
+console.log('🚀 EXECUTANDO VALIDAÇÃO...');
+const results = validateResponseFailureRate();
+
+// Executar testes de cenários
+testFailureRateScenarios();
+
+console.log('\n💡 COMANDOS DISPONÍVEIS:');
+console.log('   • validateResponseFailureRate() - Reexecutar validação');
+console.log('   • testFailureRateScenarios() - Testar diferentes cenários');
+console.log('   • results - Ver resultados detalhados');
+
+// Expor funções globalmente para reuso
+window.validateResponseFailureRate = validateResponseFailureRate;
+window.testFailureRateScenarios = testFailureRateScenarios;

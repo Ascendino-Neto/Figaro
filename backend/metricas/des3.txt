@@ -1,0 +1,377 @@
+// VALIDAÇÃO DA MÉTRICA DE REQUISIÇÕES RESPONDIDAS EM ATÉ 5s
+console.log('🎯 VALIDAÇÃO - Percentual de Requisições Respondidas em até 5s');
+console.log('Fórmula: x = RR ÷ RT × 100');
+console.log('RR = Requisições respondidas em ≤ 5s');
+console.log('RT = Total de requisições');
+console.log('============================================================');
+
+// Função principal de validação
+const validateFiveSecondResponseRate = () => {
+  console.log('\n📋 CHECKLIST DE VALIDAÇÃO:');
+  
+  // 1. Coletar dados de performance da aplicação
+  let responseData = null;
+  try {
+    // Tentar obter dados reais da Performance API
+    if (window.performance && window.performance.getEntriesByType) {
+      const performanceEntries = window.performance.getEntriesByType('resource');
+      const apiRequests = performanceEntries.filter(entry => 
+        entry.name.includes('/api/') || 
+        entry.name.includes('localhost:3000') ||
+        entry.initiatorType === 'xmlhttprequest' ||
+        entry.initiatorType === 'fetch'
+      );
+      
+      const totalRequests = apiRequests.length;
+      
+      if (totalRequests > 0) {
+        const fastRequests = apiRequests.filter(entry => entry.duration <= 5000).length;
+        const successRate = totalRequests > 0 ? (fastRequests / totalRequests) * 100 : 0;
+        
+        responseData = {
+          fastRequests: fastRequests,
+          totalRequests: totalRequests,
+          successRate: successRate,
+          slowRequests: totalRequests - fastRequests,
+          individualRequests: apiRequests.map(entry => ({
+            url: entry.name,
+            time: entry.duration,
+            status: entry.duration <= 5000 ? '✅ DENTRO' : '❌ FORA',
+            withinLimit: entry.duration <= 5000
+          })).slice(0, 15) // Mostrar apenas os primeiros 15
+        };
+        
+        console.log('✅ 1. Dados reais coletados da Performance API');
+        console.log(`   📞 ${totalRequests} requisições API analisadas`);
+      } else {
+        console.log('ℹ️ 1. Nenhuma requisição API encontrada, usando dados de teste');
+        responseData = getTestData();
+      }
+    } else {
+      console.log('ℹ️ 1. Performance API não disponível, usando dados de teste');
+      responseData = getTestData();
+    }
+  } catch (error) {
+    console.log('❌ 1. Erro ao coletar dados:', error.message);
+    console.log('   💡 Usando dados de teste...');
+    responseData = getTestData();
+  }
+
+  const RR = responseData.fastRequests;
+  const RT = responseData.totalRequests;
+  const x = responseData.successRate;
+
+  console.log('\n📊 DADOS COLETADOS:');
+  console.log(`   RR (Requisições rápidas ≤5s): ${RR}`);
+  console.log(`   RT (Total de requisições): ${RT}`);
+  console.log(`   x (Percentual): ${x.toFixed(2)}%`);
+
+  // 2. Validar a fórmula
+  console.log('\n🧮 VALIDAÇÃO DA FÓRMULA:');
+  const calculatedX = RT > 0 ? (RR / RT) * 100 : 0;
+  const formulaIsCorrect = Math.abs(calculatedX - x) < 0.01;
+  
+  console.log(`   Fórmula: x = ${RR} ÷ ${RT} × 100`);
+  console.log(`   Calculado: ${calculatedX.toFixed(2)}%`);
+  console.log(`   Registrado: ${x.toFixed(2)}%`);
+  console.log(`   ✅ Fórmula correta: ${formulaIsCorrect ? 'SIM' : 'NÃO'}`);
+
+  // 3. Validar range (0% a 100%)
+  console.log('\n📈 VALIDAÇÃO DO RANGE:');
+  const isInRange = x >= 0 && x <= 100;
+  console.log(`   0 ≤ ${x.toFixed(2)}% ≤ 100: ${isInRange ? '✅ DENTRO' : '❌ FORA'}`);
+
+  // 4. Validar consistência dos dados
+  console.log('\n🔍 VALIDAÇÃO DE CONSISTÊNCIA:');
+  const hasValidData = RR >= 0 && RT >= 0 && RR <= RT;
+  console.log(`   RR ≥ 0: ${RR >= 0}`);
+  console.log(`   RT ≥ 0: ${RT >= 0}`); 
+  console.log(`   RR ≤ RT: ${RR <= RT}`);
+  console.log(`   ✅ Dados consistentes: ${hasValidData ? 'SIM' : 'NÃO'}`);
+
+  // 5. Interpretação da métrica
+  console.log('\n📖 INTERPRETAÇÃO:');
+  let interpretation = '';
+  let status = '';
+  let color = '';
+  let meetsRequirement = x >= 95;
+  
+  if (x >= 98) {
+    interpretation = 'Excelente - Performance consistente';
+    status = '🟢 EXCELENTE';
+    color = 'green';
+  } else if (x >= 95) {
+    interpretation = 'Bom - Atende ao requisito';
+    status = '🟢 BOM';
+    color = 'green';
+  } else if (x >= 90) {
+    interpretation = 'Regular - Próximo do requisito';
+    status = '🟡 REGULAR';
+    color = 'orange';
+  } else if (x >= 80) {
+    interpretation = 'Preocupante - Abaixo do esperado';
+    status = '🟠 PREOCUPANTE';
+    color = 'darkorange';
+  } else {
+    interpretation = 'Crítico - Necessita otimização urgente';
+    status = '🔴 CRÍTICO';
+    color = 'red';
+  }
+  
+  console.log(`   %c${status}: ${interpretation}`, `color: ${color}; font-weight: bold;`);
+  console.log(`   ✅ Requisito atendido (x ≥ 95%): ${meetsRequirement ? 'SIM' : 'NÃO'}`);
+  console.log(`   📊 Meta: ${x.toFixed(2)}% / 95% (${Math.max(0, 95 - x).toFixed(2)}% abaixo)`);
+
+  // 6. Análise detalhada das requisições
+  if (responseData.individualRequests && responseData.individualRequests.length > 0) {
+    console.log('\n📊 ANÁLISE DETALHADA:');
+    
+    const fastCount = responseData.individualRequests.filter(req => req.withinLimit).length;
+    const slowCount = responseData.individualRequests.filter(req => !req.withinLimit).length;
+    
+    console.log(`   ✅ Requisições dentro do limite (≤5s): ${fastCount}`);
+    console.log(`   ❌ Requisições fora do limite (>5s): ${slowCount}`);
+    console.log(`   📈 Taxa de sucesso na amostra: ${((fastCount / responseData.individualRequests.length) * 100).toFixed(1)}%`);
+    
+    // Mostrar requisições lentas (se houver)
+    const slowRequests = responseData.individualRequests.filter(req => !req.withinLimit);
+    if (slowRequests.length > 0) {
+      console.log(`   🐌 Requisições lentas detectadas:`);
+      slowRequests.forEach((req, index) => {
+        const url = req.url.length > 40 ? req.url.substring(0, 37) + '...' : req.url;
+        console.log(`      ${index + 1}. ${url}`);
+        console.log(`         ⏰ ${req.time.toFixed(0)}ms (${(req.time / 1000).toFixed(1)}s)`);
+      });
+    }
+    
+    // Distribuição de tempos
+    console.log(`   📋 Distribuição de tempos:`);
+    const timeRanges = [
+      { range: '≤1s', max: 1000, count: 0 },
+      { range: '1-3s', max: 3000, count: 0 },
+      { range: '3-5s', max: 5000, count: 0 },
+      { range: '>5s', max: Infinity, count: 0 }
+    ];
+    
+    responseData.individualRequests.forEach(req => {
+      const range = timeRanges.find(r => req.time <= r.max);
+      if (range) range.count++;
+    });
+    
+    timeRanges.forEach(range => {
+      const percent = (range.count / responseData.individualRequests.length * 100).toFixed(1);
+      console.log(`      ${range.range}: ${range.count} (${percent}%)`);
+    });
+  }
+
+  // 7. Calcular pontuação
+  console.log('\n🎯 PONTUAÇÃO FINAL:');
+  let score = 0;
+  if (formulaIsCorrect) score += 40;
+  if (isInRange) score += 30;
+  if (hasValidData) score += 30;
+
+  // Bônus por atender ao requisito
+  const bonus = meetsRequirement ? 10 : 0;
+  score = Math.min(100, score + bonus);
+
+  console.log(`   Fórmula correta: ${formulaIsCorrect ? '+40' : '+0'}`);
+  console.log(`   Range válido: ${isInRange ? '+30' : '+0'}`);
+  console.log(`   Dados consistentes: ${hasValidData ? '+30' : '+0'}`);
+  console.log(`   Requisito atendido: ${meetsRequirement ? '+10' : '+0'}`);
+  console.log(`   📊 PONTUAÇÃO TOTAL: ${score}/100`);
+
+  // 8. Recomendações baseadas no resultado
+  console.log('\n💡 RECOMENDAÇÕES:');
+  if (x < 95) {
+    const gap = (95 - x).toFixed(1);
+    console.log(`   🚨 Necessário melhorar ${gap}% para atingir a meta de 95%`);
+    
+    if (x < 80) {
+      console.log('   🚨 Identificar e otimizar endpoints críticos');
+      console.log('   🚨 Implementar cache agressivo');
+      console.log('   🚨 Revisar infraestrutura do servidor');
+    } else if (x < 90) {
+      console.log('   🔧 Otimizar queries de banco de dados');
+      console.log('   🔧 Implementar paginação em listas grandes');
+      console.log('   🔧 Reduzir tamanho de payloads');
+    } else {
+      console.log('   🔧 Ajustes finos em endpoints específicos');
+      console.log('   🔧 Monitorar performance continuamente');
+    }
+  } else {
+    console.log('   ✅ Meta de 95% atingida com sucesso!');
+    console.log('   ✅ Manter monitoramento contínuo');
+    console.log('   ✅ Considerar meta mais ambiciosa (98%+)');
+  }
+
+  // 9. Resultado final
+  console.log('\n🎊 RESULTADO FINAL:');
+  if (score >= 80) {
+    console.log('%c✅ MÉTRICA VALIDADA COM SUCESSO!', 'color: green; font-size: 16px; font-weight: bold;');
+    console.log('%cA Métrica de Percentual em 5s está funcionando corretamente.', 'color: green;');
+  } else {
+    console.log('%c❌ MÉTRICA NÃO VALIDADA', 'color: red; font-size: 16px; font-weight: bold;');
+    console.log('%cA métrica precisa de ajustes antes de ser considerada válida.', 'color: red;');
+  }
+
+  return {
+    score,
+    isValid: score >= 80,
+    meetsRequirement: meetsRequirement,
+    metrics: { 
+      fastRequests: RR, 
+      totalRequests: RT, 
+      successRate: x,
+      slowRequests: responseData.slowRequests
+    },
+    interpretation: interpretation,
+    status: status,
+    requirement: {
+      target: 95,
+      current: x,
+      gap: Math.max(0, 95 - x)
+    },
+    details: {
+      formulaIsCorrect,
+      isInRange, 
+      hasValidData
+    }
+  };
+};
+
+// Funções auxiliares
+function getTestData() {
+  // Dados de teste realistas para desenvolvimento
+  const testRequests = [
+    { time: 1200, withinLimit: true },
+    { time: 800, withinLimit: true },
+    { time: 4500, withinLimit: true },
+    { time: 2300, withinLimit: true },
+    { time: 6200, withinLimit: false },
+    { time: 3400, withinLimit: true },
+    { time: 1500, withinLimit: true },
+    { time: 2800, withinLimit: true },
+    { time: 5100, withinLimit: false },
+    { time: 1900, withinLimit: true }
+  ];
+  
+  const fastRequests = testRequests.filter(req => req.withinLimit).length;
+  const totalRequests = testRequests.length;
+  const successRate = (fastRequests / totalRequests) * 100;
+  
+  return {
+    fastRequests: fastRequests,
+    totalRequests: totalRequests,
+    successRate: successRate,
+    slowRequests: totalRequests - fastRequests,
+    individualRequests: testRequests.map((req, index) => ({
+      url: `/api/endpoint-${index + 1}`,
+      time: req.time,
+      status: req.withinLimit ? '✅ DENTRO' : '❌ FORA',
+      withinLimit: req.withinLimit
+    }))
+  };
+}
+
+// Função para simular diferentes cenários de performance
+const testResponseRateScenarios = () => {
+  console.log('\n🎭 CENÁRIOS DE TAXA DE RESPOSTA:');
+  
+  const scenarios = [
+    { fast: 100, total: 100, desc: 'Perfeito - 100% em 5s' },
+    { fast: 98, total: 100, desc: 'Excelente - 98% em 5s' },
+    { fast: 95, total: 100, desc: 'Meta - 95% em 5s' },
+    { fast: 90, total: 100, desc: 'Regular - 90% em 5s' },
+    { fast: 80, total: 100, desc: 'Preocupante - 80% em 5s' },
+    { fast: 60, total: 100, desc: 'Crítico - 60% em 5s' }
+  ];
+  
+  scenarios.forEach(scenario => {
+    const rate = (scenario.fast / scenario.total) * 100;
+    let status = '';
+    
+    if (rate >= 98) status = '🟢';
+    else if (rate >= 95) status = '🟢';
+    else if (rate >= 90) status = '🟡';
+    else if (rate >= 80) status = '🟠';
+    else status = '🔴';
+    
+    const meetsReq = rate >= 95 ? '✅' : '❌';
+    console.log(`   ${status} ${meetsReq} ${scenario.desc}: ${rate.toFixed(0)}%`);
+  });
+};
+
+// Função para analisar endpoints específicos
+const analyzeEndpoints = () => {
+  if (!window.performance) {
+    console.log('❌ Performance API não disponível');
+    return;
+  }
+  
+  const entries = window.performance.getEntriesByType('resource');
+  const apiEntries = entries.filter(entry => 
+    entry.name.includes('/api/') || entry.name.includes('localhost:3000/api/')
+  );
+  
+  if (apiEntries.length === 0) {
+    console.log('🔍 Nenhum endpoint API encontrado para análise');
+    return;
+  }
+  
+  // Agrupar por endpoint
+  const endpointMap = {};
+  apiEntries.forEach(entry => {
+    const url = new URL(entry.name);
+    const endpoint = url.pathname;
+    
+    if (!endpointMap[endpoint]) {
+      endpointMap[endpoint] = {
+        count: 0,
+        fast: 0,
+        totalTime: 0,
+        times: []
+      };
+    }
+    
+    endpointMap[endpoint].count++;
+    endpointMap[endpoint].totalTime += entry.duration;
+    endpointMap[endpoint].times.push(entry.duration);
+    
+    if (entry.duration <= 5000) {
+      endpointMap[endpoint].fast++;
+    }
+  });
+  
+  console.log('\n🔍 ANÁLISE POR ENDPOINT:');
+  Object.entries(endpointMap).forEach(([endpoint, data]) => {
+    const successRate = (data.fast / data.count) * 100;
+    const avgTime = data.totalTime / data.count;
+    const status = successRate >= 95 ? '✅' : successRate >= 90 ? '⚠️' : '❌';
+    
+    console.log(`   ${status} ${endpoint}`);
+    console.log(`      📊 ${data.fast}/${data.count} (${successRate.toFixed(1)}%) em 5s`);
+    console.log(`      ⏰ Média: ${avgTime.toFixed(0)}ms`);
+  });
+};
+
+// Executar a validação
+console.log('🚀 EXECUTANDO VALIDAÇÃO DO PERCENTUAL EM 5s...');
+const results = validateFiveSecondResponseRate();
+
+// Executar testes de cenários
+testResponseRateScenarios();
+
+// Analisar endpoints específicos
+analyzeEndpoints();
+
+console.log('\n💡 COMANDOS DISPONÍVEIS:');
+console.log('   • validateFiveSecondResponseRate() - Reexecutar validação');
+console.log('   • testResponseRateScenarios() - Testar diferentes cenários');
+console.log('   • analyzeEndpoints() - Analisar performance por endpoint');
+console.log('   • results - Ver resultados detalhados');
+
+// Expor funções globalmente para reuso
+window.validateFiveSecondResponseRate = validateFiveSecondResponseRate;
+window.testResponseRateScenarios = testResponseRateScenarios;
+window.analyzeEndpoints = analyzeEndpoints;

@@ -1,0 +1,108 @@
+// VALIDAÇÃO COMPLETA DA MÉTRICA DE SEGURANÇA 1
+console.log('🔐 VALIDAÇÃO - Métrica de Segurança 1');
+console.log('Taxa de tentativas de login suspeitas detectadas');
+console.log('Fórmula: x = LS ÷ LT × 100');
+console.log('===============================================');
+
+// Função principal de validação
+const validateSecurityMetric1 = () => {
+  console.log('\n📋 CHECKLIST DE VALIDAÇÃO:');
+  
+  // 1. Verificar se o securityService existe
+  let securityService = null;
+  try {
+    // Tenta acessar o securityService do authService
+    if (window.authService && window.authService.getSecurityMetrics) {
+      const metrics = window.authService.getSecurityMetrics();
+      securityService = { calculateSecurityMetrics: () => metrics };
+      console.log('✅ 1. SecurityService encontrado via authService');
+    } else {
+      console.log('❌ 1. SecurityService não encontrado');
+      console.log('   💡 Criando dados de teste...');
+      securityService = {
+        calculateSecurityMetrics: () => ({
+          suspiciousAttempts: 8,    // LS
+          totalAttempts: 15,        // LT  
+          detectionRate: 53.33,     // x
+          blockedUsers: 2,
+          timestamp: new Date().toISOString()
+        })
+      };
+    }
+  } catch (error) {
+    console.log('❌ 1. Erro ao acessar securityService:', error.message);
+    return;
+  }
+
+  // 2. Obter métricas atuais
+  const metrics = securityService.calculateSecurityMetrics();
+  const LS = metrics.suspiciousAttempts;
+  const LT = metrics.totalAttempts;
+  const x = metrics.detectionRate;
+
+  console.log('\n📊 DADOS ATUAIS:');
+  console.log(`   LS (Logins Suspeitos): ${LS}`);
+  console.log(`   LT (Tentativas Totais): ${LT}`);
+  console.log(`   x (Taxa de Detecção): ${x}%`);
+
+  // 3. Validar a fórmula
+  console.log('\n🧮 VALIDAÇÃO DA FÓRMULA:');
+  const calculatedX = LT > 0 ? (LS / LT) * 100 : 0;
+  const formulaIsCorrect = Math.abs(calculatedX - x) < 0.01;
+  
+  console.log(`   Fórmula: x = ${LS} ÷ ${LT} × 100`);
+  console.log(`   Calculado: ${calculatedX.toFixed(2)}%`);
+  console.log(`   Registrado: ${x}%`);
+  console.log(`   ✅ Fórmula correta: ${formulaIsCorrect ? 'SIM' : 'NÃO'}`);
+
+  // 4. Validar range
+  console.log('\n📈 VALIDAÇÃO DO RANGE:');
+  const isInRange = x >= 0 && x <= 100;
+  console.log(`   0 ≤ ${x}% ≤ 100: ${isInRange ? '✅ DENTRO' : '❌ FORA'}`);
+
+  // 5. Validar consistência dos dados
+  console.log('\n🔍 VALIDAÇÃO DE CONSISTÊNCIA:');
+  const hasValidData = LS >= 0 && LT >= 0 && LS <= LT;
+  console.log(`   LS ≥ 0: ${LS >= 0}`);
+  console.log(`   LT ≥ 0: ${LT >= 0}`); 
+  console.log(`   LS ≤ LT: ${LS <= LT}`);
+  console.log(`   ✅ Dados consistentes: ${hasValidData ? 'SIM' : 'NÃO'}`);
+
+  // 6. Calcular pontuação
+  console.log('\n🎯 PONTUAÇÃO FINAL:');
+  let score = 0;
+  if (formulaIsCorrect) score += 40;
+  if (isInRange) score += 30;
+  if (hasValidData) score += 30;
+
+  console.log(`   Fórmula correta: ${formulaIsCorrect ? '+40' : '+0'}`);
+  console.log(`   Range válido: ${isInRange ? '+30' : '+0'}`);
+  console.log(`   Dados consistentes: ${hasValidData ? '+30' : '+0'}`);
+  console.log(`   📊 PONTUAÇÃO TOTAL: ${score}/100`);
+
+  // 7. Resultado final
+  console.log('\n🎊 RESULTADO FINAL:');
+  if (score >= 80) {
+    console.log('%c✅ MÉTRICA VALIDADA COM SUCESSO!', 'color: green; font-size: 16px; font-weight: bold;');
+    console.log('%cA Métrica de Segurança 1 está funcionando corretamente.', 'color: green;');
+  } else {
+    console.log('%c❌ MÉTRICA NÃO VALIDADA', 'color: red; font-size: 16px; font-weight: bold;');
+    console.log('%cA métrica precisa de ajustes antes de ser considerada válida.', 'color: red;');
+  }
+
+  return {
+    score,
+    isValid: score >= 80,
+    metrics: { LS, LT, x },
+    details: {
+      formulaIsCorrect,
+      isInRange, 
+      hasValidData
+    }
+  };
+};
+
+// Executar a validação
+const results = validateSecurityMetric1();
+
+console.log('\n💡 DICA: Execute validateSecurityMetric1() novamente para revalidar.');

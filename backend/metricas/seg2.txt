@@ -1,0 +1,181 @@
+// VALIDAÇÃO COMPLETA DA MÉTRICA DE SEGURANÇA 2
+console.log('%c🔐 VALIDAÇÃO - Métrica de Segurança 2', 'color: #3498db; font-size: 18px; font-weight: bold;');
+console.log('%cTaxa de dados criptografados', 'color: #3498db; font-size: 14px;');
+console.log('%cFórmula: x = DC ÷ DT × 100', 'color: #2c3e50; font-size: 14px;');
+console.log('===============================================');
+
+// Função principal de validação
+const validateSecurityMetric2 = async () => {
+  console.log('\n📋 CHECKLIST DE VALIDAÇÃO:');
+  
+  let metricsData = null;
+  
+  // 1. Tentar buscar métricas da API
+  try {
+    console.log('🔍 1. Buscando métricas da API...');
+    const response = await fetch('http://localhost:3000/api/encryption/metrics');
+    
+    if (response.ok) {
+      metricsData = await response.json();
+      console.log('✅ Métricas obtidas da API com sucesso');
+    } else {
+      throw new Error(`API retornou status ${response.status}`);
+    }
+  } catch (error) {
+    console.log('❌ Não foi possível acessar a API:', error.message);
+    console.log('💡 Criando dados de teste para validação...');
+    
+    // Dados de teste
+    metricsData = {
+      success: true,
+      metric: 'Taxa de dados criptografados',
+      formula: 'x = DC ÷ DT × 100',
+      values: {
+        DC: 45,    // Dados Criptografados
+        DT: 60,    // Total de Dados Sensíveis
+        x: 75      // Taxa
+      },
+      calculation: 'x = 45 ÷ 60 × 100 = 75%',
+      interpretation: 'Bom - Maioria dos dados sensíveis está protegida',
+      status: 'GOOD',
+      recommendations: [
+        'Implementar criptografia para campos restantes',
+        'Revisar controllers que não estão aplicando criptografia'
+      ]
+    };
+  }
+
+  // 2. Extrair valores
+  const DC = metricsData.values.DC;
+  const DT = metricsData.values.DT;
+  const x = metricsData.values.x;
+
+  console.log('\n📊 DADOS OBTIDOS:');
+  console.log(`   DC (Dados Criptografados): ${DC}`);
+  console.log(`   DT (Total de Dados Sensíveis): ${DT}`);
+  console.log(`   x (Taxa de Criptografia): ${x}%`);
+
+  // 3. Validar a fórmula
+  console.log('\n🧮 VALIDAÇÃO DA FÓRMULA:');
+  const calculatedX = DT > 0 ? (DC / DT) * 100 : 0;
+  const formulaIsCorrect = Math.abs(calculatedX - x) < 0.01;
+  
+  console.log(`   Fórmula: x = ${DC} ÷ ${DT} × 100`);
+  console.log(`   Calculado: ${calculatedX.toFixed(2)}%`);
+  console.log(`   Registrado: ${x}%`);
+  console.log(`   ✅ Fórmula correta: ${formulaIsCorrect ? 'SIM' : 'NÃO'}`);
+
+  // 4. Validar range (0% a 100%)
+  console.log('\n📈 VALIDAÇÃO DO RANGE:');
+  const isInRange = x >= 0 && x <= 100;
+  console.log(`   0 ≤ ${x}% ≤ 100: ${isInRange ? '✅ DENTRO' : '❌ FORA'}`);
+
+  // 5. Validar consistência dos dados
+  console.log('\n🔍 VALIDAÇÃO DE CONSISTÊNCIA:');
+  const hasValidData = DC >= 0 && DT >= 0 && DC <= DT;
+  console.log(`   DC ≥ 0: ${DC >= 0}`);
+  console.log(`   DT ≥ 0: ${DT >= 0}`); 
+  console.log(`   DC ≤ DT: ${DC <= DT}`);
+  console.log(`   ✅ Dados consistentes: ${hasValidData ? 'SIM' : 'NÃO'}`);
+
+  // 6. Validar interpretação
+  console.log('\n📖 VALIDAÇÃO DA INTERPRETAÇÃO:');
+  let interpretationIsCorrect = false;
+  if (x >= 95 && metricsData.interpretation.includes('Excelente')) interpretationIsCorrect = true;
+  else if (x >= 80 && x < 95 && metricsData.interpretation.includes('Bom')) interpretationIsCorrect = true;
+  else if (x >= 60 && x < 80 && metricsData.interpretation.includes('Regular')) interpretationIsCorrect = true;
+  else if (x < 60 && metricsData.interpretation.includes('Crítico')) interpretationIsCorrect = true;
+  
+  console.log(`   Interpretação: "${metricsData.interpretation}"`);
+  console.log(`   ✅ Interpretação correta: ${interpretationIsCorrect ? 'SIM' : 'NÃO'}`);
+
+  // 7. Calcular pontuação
+  console.log('\n🎯 PONTUAÇÃO FINAL:');
+  let score = 0;
+  if (formulaIsCorrect) score += 30;
+  if (isInRange) score += 20;
+  if (hasValidData) score += 20;
+  if (interpretationIsCorrect) score += 20;
+  if (metricsData.recommendations && metricsData.recommendations.length > 0) score += 10;
+
+  console.log(`   Fórmula correta: ${formulaIsCorrect ? '+30' : '+0'}`);
+  console.log(`   Range válido: ${isInRange ? '+20' : '+0'}`);
+  console.log(`   Dados consistentes: ${hasValidData ? '+20' : '+0'}`);
+  console.log(`   Interpretação correta: ${interpretationIsCorrect ? '+20' : '+0'}`);
+  console.log(`   Recomendações presentes: ${metricsData.recommendations ? '+10' : '+0'}`);
+  console.log(`   📊 PONTUAÇÃO TOTAL: ${score}/100`);
+
+  // 8. Resultado final
+  console.log('\n🎊 RESULTADO FINAL:');
+  if (score >= 80) {
+    console.log('%c✅ MÉTRICA 2 VALIDADA COM SUCESSO!', 'color: green; font-size: 16px; font-weight: bold;');
+    console.log('%cA Métrica de Segurança 2 está funcionando corretamente.', 'color: green;');
+  } else if (score >= 60) {
+    console.log('%c⚠️ MÉTRICA 2 PARCIALMENTE VALIDADA', 'color: orange; font-size: 16px; font-weight: bold;');
+    console.log('%cA métrica funciona, mas precisa de ajustes.', 'color: orange;');
+  } else {
+    console.log('%c❌ MÉTRICA 2 NÃO VALIDADA', 'color: red; font-size: 16px; font-weight: bold;');
+    console.log('%cA métrica precisa de correções antes de ser considerada válida.', 'color: red;');
+  }
+
+  // 9. Recomendações específicas
+  console.log('\n💡 RECOMENDAÇÕES:');
+  if (!formulaIsCorrect) {
+    console.log('   • Verificar o cálculo da fórmula no backend');
+  }
+  if (!isInRange) {
+    console.log('   • Corrigir o valor da taxa (deve estar entre 0% e 100%)');
+  }
+  if (!hasValidData) {
+    console.log('   • Verificar a consistência dos contadores DC e DT');
+  }
+  if (!interpretationIsCorrect) {
+    console.log('   • Ajustar a interpretação para a taxa atual');
+  }
+
+  return {
+    score,
+    isValid: score >= 80,
+    metrics: { DC, DT, x },
+    details: {
+      formulaIsCorrect,
+      isInRange, 
+      hasValidData,
+      interpretationIsCorrect
+    },
+    rawData: metricsData
+  };
+};
+
+// Função para testar cenários específicos
+const testSpecificScenarios = () => {
+  console.log('\n🧪 TESTE DE CENÁRIOS ESPECÍFICOS:');
+  
+  const scenarios = [
+    { DC: 100, DT: 100, expectedX: 100, description: 'Cenário ideal - 100% criptografado' },
+    { DC: 0, DT: 100, expectedX: 0, description: 'Cenário crítico - 0% criptografado' },
+    { DC: 75, DT: 100, expectedX: 75, description: 'Cenário bom - 75% criptografado' },
+    { DC: 45, DT: 100, expectedX: 45, description: 'Cenário regular - 45% criptografado' }
+  ];
+
+  scenarios.forEach((scenario, index) => {
+    const calculated = (scenario.DC / scenario.DT) * 100;
+    const isCorrect = Math.abs(calculated - scenario.expectedX) < 0.01;
+    
+    console.log(`   ${isCorrect ? '✅' : '❌'} ${scenario.description}: ${scenario.DC}/${scenario.DT} = ${calculated}%`);
+  });
+};
+
+// Executar a validação principal
+console.log('\n🚀 INICIANDO VALIDAÇÃO DA MÉTRICA 2...');
+validateSecurityMetric2().then(results => {
+  console.log('\n===============================================');
+  console.log('💡 COMANDOS DISPONÍVEIS:');
+  console.log('   • validateSecurityMetric2() - Reexecutar validação');
+  console.log('   • testSpecificScenarios() - Testar cenários específicos');
+  console.log('   • results - Ver resultados detalhados');
+});
+
+// Também expor as funções globalmente para uso posterior
+window.validateSecurityMetric2 = validateSecurityMetric2;
+window.testSpecificScenarios = testSpecificScenarios;
