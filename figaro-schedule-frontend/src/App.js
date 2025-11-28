@@ -147,9 +147,7 @@ function App() {
               } 
             />
           </Routes>
-          
-          {/* Componente de Teste de API (mantém na maioria das páginas) */}
-          <ApiTest />
+
         </main>
         
         {/* Footer Simples */}

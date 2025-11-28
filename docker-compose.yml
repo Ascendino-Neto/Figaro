@@ -1,0 +1,59 @@
+services:
+  # Banco de dados PostgreSQL
+  postgres:
+    image: postgres:13
+    container_name: figaro-postgres
+    environment:
+      POSTGRES_DB: figaro_schedule
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 12345
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgresql/init-database.sql:/docker-entrypoint-initdb.d/init-database.sql
+    networks:
+      - figaro-network
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.backend
+    container_name: figaro-backend
+    environment:
+      DB_HOST: postgres
+      DB_USER: postgres
+      DB_PASSWORD: 12345
+      DB_NAME: figaro_schedule
+      DB_PORT: 5432
+      PORT: 3000
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+    networks:
+      - figaro-network
+    restart: unless-stopped
+
+  # Frontend React
+  frontend:
+    build:
+      context: ./figaro-schedule-frontend
+      dockerfile: Dockerfile.frontend
+    container_name: figaro-frontend
+    ports:
+      - "3001:80"
+    depends_on:
+      - backend
+    networks:
+      - figaro-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  figaro-network:
+    driver: bridge
