@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
-// ? MUDANÇA: Importar database PostgreSQL
+// ? MUDANÃA: Importar database PostgreSQL
 const db = require('./config/db');
 
 // Importar TODAS as rotas
@@ -15,6 +15,7 @@ const servicoRoutes = require('./routes/servicoRoutes');
 const agendamentoRoutes = require('./routes/agendamentoRoutes');
 const encryptionRoutes = require('./routes/encryptionRoutes');
 const authMetricsRoutes = require('./routes/authMetricsRoutes');
+const performanceMiddleware = require('./middleware/performanceMiddleware');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -37,7 +38,7 @@ app.use('/api', encryptionRoutes);
 app.get('/', (req, res) => {
   res.json({
     message: 'API FigaroSchedule funcionando!',
-    database: 'PostgreSQL', // ? MUDANÇA
+    database: 'PostgreSQL', // ? MUDANÃA
     status: 'online',
     endpoints: {
       clientes: {
@@ -76,10 +77,10 @@ app.get('/', (req, res) => {
   });
 });
 
-// Rota de saúde (ATUALIZADA para PostgreSQL)
+// Rota de saÃºde (ATUALIZADA para PostgreSQL)
 app.get('/api/health', async (req, res) => {
   try {
-    // ? MUDANÇA: Teste de conexão com PostgreSQL
+    // ? MUDANÃA: Teste de conexÃ£o com PostgreSQL
     const result = await db.query('SELECT NOW() as time, version() as version');
     
     // Verificar tabelas
@@ -94,7 +95,7 @@ app.get('/api/health', async (req, res) => {
     
     res.json({
       status: 'ok',
-      database: 'PostgreSQL', // ? MUDANÇA
+      database: 'PostgreSQL', // ? MUDANÃA
       timestamp: result.rows[0].time,
       version: result.rows[0].version.split(',')[0],
       tables: tables,
@@ -112,12 +113,14 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-// Rota de fallback para endpoints não encontrados
+app.use(performanceMiddleware);
+
+// Rota de fallback para endpoints nÃ£o encontrados
 app.use((req, res) => {
   res.status(404).json({
     success: false,
-    error: 'Endpoint não encontrado',
-    message: `A rota ${req.originalUrl} não existe`,
+    error: 'Endpoint nÃ£o encontrado',
+    message: `A rota ${req.originalUrl} nÃ£o existe`,
     availableEndpoints: {
       clientes: {
         cadastro: 'POST /api/clientes',
@@ -153,7 +156,7 @@ app.use('/api', authMetricsRoutes);
 
 // Manipulador de erros global
 app.use((error, req, res, next) => {
-  console.error('? Erro não tratado:', error);
+  console.error('? Erro nÃ£o tratado:', error);
   res.status(500).json({
     success: false,
     error: 'Erro interno do servidor',
@@ -161,12 +164,12 @@ app.use((error, req, res, next) => {
   });
 });
 
-// Testar conexão com PostgreSQL antes de iniciar
+// Testar conexÃ£o com PostgreSQL antes de iniciar
 async function iniciarServidor() {
   try {
-    console.log('?? Testando conexão com PostgreSQL...');
+    console.log('?? Testando conexÃ£o com PostgreSQL...');
     
-    // Testar conexão
+    // Testar conexÃ£o
     const result = await db.query('SELECT NOW() as current_time');
     console.log('? Conectado ao PostgreSQL - Figaro Schedule');
     console.log('   ?? Hora do servidor:', result.rows[0].current_time);
@@ -184,28 +187,28 @@ async function iniciarServidor() {
     app.listen(PORT, () => {
       console.log(`?? Servidor rodando na porta ${PORT}`);
       console.log(`?? Acesse: http://localhost:${PORT}`);
-      console.log('?? Endpoints disponíveis:');
+      console.log('?? Endpoints disponÃ­veis:');
       console.log('   POST /api/clientes          - Cadastrar cliente');
       console.log('   GET  /api/clientes/:cpf     - Buscar cliente por CPF');
       console.log('   POST /api/prestadores       - Cadastrar prestador');
       console.log('   GET  /api/prestadores       - Listar prestadores');
-      console.log('   POST /api/servicos          - Cadastrar serviço');
-      console.log('   GET  /api/servicos          - Listar serviços');
+      console.log('   POST /api/servicos          - Cadastrar serviÃ§o');
+      console.log('   GET  /api/servicos          - Listar serviÃ§os');
       console.log('   POST /api/agendamentos      - Criar agendamento');
-      console.log('   GET  /api/agendamentos/horarios-disponiveis - Horários disponíveis');
+      console.log('   GET  /api/agendamentos/horarios-disponiveis - HorÃ¡rios disponÃ­veis');
       console.log('   POST /api/auth/login        - Login');
       console.log('   GET  /api/health            - Status do sistema');
-      console.log('   GET  /                      - Informações da API');
+      console.log('   GET  /                      - InformaÃ§Ãµes da API');
     });
     
   } catch (error) {
-    console.error('? ERRO CRÍTICO: Não foi possível conectar ao PostgreSQL');
+    console.error('? ERRO CRÃTICO: NÃ£o foi possÃ­vel conectar ao PostgreSQL');
     console.error('   Detalhes:', error.message);
-    console.log('\n?? Solução:');
-    console.log('   1. Verifique se o PostgreSQL está rodando');
+    console.log('\n?? SoluÃ§Ã£o:');
+    console.log('   1. Verifique se o PostgreSQL estÃ¡ rodando');
     console.log('   2. Confirme as credenciais no arquivo .env');
     console.log('   3. Verifique se o database "figaro_schedule" existe');
-    console.log('   4. Execute o script SQL de criação das tabelas');
+    console.log('   4. Execute o script SQL de criaÃ§Ã£o das tabelas');
     process.exit(1);
   }
 }

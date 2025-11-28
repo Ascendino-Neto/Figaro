@@ -52,6 +52,20 @@ router.post('/agendamentos/disponibilidade', agendamentoController.verificarDisp
 // @access  Private (Cliente do agendamento)
 router.put('/agendamentos/:id/cancelar', agendamentoController.cancelar);
 
+const cacheMiddleware = require('../middleware/cacheMiddleware');
+
+// Cache de 2 minutos para horários disponíveis
+router.get('/agendamentos/horarios-disponiveis', 
+  cacheMiddleware(120),
+  agendamentoController.getHorariosDisponiveis
+);
+
+// Cache de 5 minutos para lista de serviços
+router.get('/servicos',
+  cacheMiddleware(300),
+  servicoController.getAll
+);
+
 // Rota de health check para agendamentos
 router.get('/agendamentos-health', (req, res) => {
   res.json({
