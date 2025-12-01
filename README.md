@@ -1,28 +1,22 @@
-# FigaroSchedule ✂️
+Figaro Schedule - Sistema Dockerizado
 
-Sistema de agendamento para barbearia desenvolvido em Node.js.
+Como executar:
+1. Extraia esta pasta
+2. Certifique-se de ter Docker instalado
+3. Execute: docker-compose up -d
+4. Acesse: http://localhost:3001
 
-## 🚀 Tecnologias
+Contas para teste:
+-Cliente: joao@email.com / 123456
+-Prestador: carlos@barber.com / 123456  
+-Admin: admin@figaro.com / admin123
 
-- **Backend:** Node.js + Express.js
-- **Database:** SQLite (dev) / PostgreSQL (prod)
-- **Autenticação:** JWT
-- **Frontend:** (Em breve)
+Funcionalidades:
+-Cadastro de clientes/prestadores
+-Agendamento de serviços
+-Reagendamento
+-Métricas de segurança
+-Dashboard para clientes e prestadores
 
-## 📦 Instalação
-
-```bash
-# Clone o repositório
-git clone https://github.com/SEU_USUARIO/FigaroSchedule.git
-
-# Entre na pasta
-cd FigaroSchedule
-
-# Instale as dependências
-npm install
-
-# Configure as variáveis de ambiente
-cp .env.example .env
-
-# Execute em desenvolvimento
-npm run dev
+Para parar:
+docker-compose down
